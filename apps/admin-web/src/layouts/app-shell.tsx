@@ -3,8 +3,10 @@ import { NavLink, Outlet } from "react-router-dom";
 const navItems = [
   { to: "/", label: "Overview" },
   { to: "/appointments", label: "Appointments" },
+  { to: "/session-records", label: "Session Records" },
   { to: "/risks", label: "Risks" },
-  { to: "/config", label: "Config" }
+  { to: "/config", label: "Config" },
+  { to: "/audit-logs", label: "Audit Logs" }
 ];
 
 export function AppShell() {
@@ -35,4 +37,3 @@ export function AppShell() {
     </div>
   );
 }
-

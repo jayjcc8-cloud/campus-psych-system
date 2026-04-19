@@ -1,9 +1,11 @@
 import { appointmentSummaryFixture, overviewMetricsFixture } from "@campus-psych/domain";
 import { useEffect, useState } from "react";
 import { MetricCard } from "../components/metric-card";
+import { useAdminSyncVersion } from "../features/admin-sync";
 import { getAppointmentSummary, getOverviewMetrics } from "../lib/api";
 
 export function DashboardPage() {
+  const overviewVersion = useAdminSyncVersion("overview");
   const [overview, setOverview] = useState(overviewMetricsFixture);
   const [summary, setSummary] = useState(appointmentSummaryFixture);
 
@@ -19,7 +21,7 @@ export function DashboardPage() {
         setSummary(summaryResult.value);
       }
     });
-  }, []);
+  }, [overviewVersion]);
 
   return (
     <section className="page">

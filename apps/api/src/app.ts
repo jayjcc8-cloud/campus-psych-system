@@ -19,7 +19,8 @@ export function createApp() {
   });
 
   app.register(cors, {
-    origin: true
+    origin: true,
+    methods: ["GET", "HEAD", "POST", "PATCH"]
   });
 
   app.register(registerHealthRoutes);

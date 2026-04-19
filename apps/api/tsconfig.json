@@ -2,13 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": "../..",
     "types": [
       "node"
     ]
   },
   "include": [
-    "src"
+    "src",
+    "../../packages/domain/src"
   ]
 }
-
