@@ -14,7 +14,8 @@ page {
 .section-card,
 .entry-chip,
 .contact-card,
-.booking-card {
+.booking-card,
+.slot-card {
   border-radius: 24px;
 }
 
@@ -73,6 +74,19 @@ page {
   font-size: 26px;
 }
 
+.entry-button {
+  border: 0;
+  line-height: 1.4;
+}
+
+.entry-button::after,
+.shortcut-button::after,
+.primary-button::after,
+.selector-chip::after,
+.slot-card::after {
+  border: 0;
+}
+
 .section-card {
   display: grid;
   gap: 16px;
@@ -124,3 +138,102 @@ page {
   font-size: 22px;
 }
 
+.shortcut-grid,
+.form-stack,
+.slot-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.shortcut-button,
+.primary-button,
+.selector-chip,
+.slot-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  border-radius: 22px;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.shortcut-button,
+.primary-button {
+  background: #17324d;
+  color: #fff7ea;
+}
+
+.shortcut-button-secondary {
+  background: rgba(23, 50, 77, 0.08);
+  color: #17324d;
+}
+
+.primary-button[disabled] {
+  opacity: 0.5;
+}
+
+.field-label {
+  font-size: 24px;
+  font-weight: 700;
+  color: #17324d;
+}
+
+.chip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.selector-chip,
+.slot-card {
+  height: auto;
+  padding: 18px 20px;
+  background: rgba(23, 50, 77, 0.06);
+  color: #17324d;
+  text-align: left;
+}
+
+.selector-chip.is-active,
+.slot-card.is-active {
+  background: #17324d;
+  color: #fff7ea;
+}
+
+.slot-card {
+  display: grid;
+  justify-content: start;
+  gap: 8px;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 20px;
+  border-radius: 22px;
+  background: rgba(23, 50, 77, 0.05);
+  font-size: 24px;
+  box-sizing: border-box;
+}
+
+.success-banner,
+.error-banner {
+  display: block;
+  padding: 18px 20px;
+  border-radius: 18px;
+  font-size: 24px;
+}
+
+.success-banner {
+  background: rgba(104, 181, 152, 0.18);
+  color: #24634f;
+}
+
+.error-banner {
+  background: rgba(191, 102, 92, 0.16);
+  color: #8a3f35;
+}
+
+.hidden-input {
+  display: none;
+}

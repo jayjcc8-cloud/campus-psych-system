@@ -1,13 +1,13 @@
-import { publicConfigFixture } from "@campus-psych/domain";
 import { View, Text } from "@tarojs/components";
 import { useEffect, useState } from "react";
 import { getPublicConfig } from "../../lib/api";
+import { publicConfigFixture } from "../../lib/fixtures";
 
 export default function EmergencyPage() {
   const [config, setConfig] = useState(publicConfigFixture);
 
   useEffect(() => {
-    void getPublicConfig()
+    getPublicConfig()
       .then(setConfig)
       .catch(() => {
         return;
