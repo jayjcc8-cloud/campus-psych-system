@@ -1,0 +1,25 @@
+{
+  "name": "@campus-psych/miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "taro build --type weapp --watch",
+    "build": "taro build --type weapp",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@campus-psych/domain": "workspace:*",
+    "@tarojs/components": "^4.0.6",
+    "@tarojs/react": "^4.0.6",
+    "@tarojs/runtime": "^4.0.6",
+    "@tarojs/taro": "^4.0.6",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tarojs/cli": "^4.0.6",
+    "@types/react": "^19.1.2",
+    "typescript": "^5.8.3"
+  }
+}
+

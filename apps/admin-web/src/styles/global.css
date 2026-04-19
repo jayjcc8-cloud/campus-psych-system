@@ -1,0 +1,213 @@
+:root {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: #102033;
+  background:
+    radial-gradient(circle at top right, rgba(99, 187, 170, 0.24), transparent 28%),
+    linear-gradient(180deg, #f6f6ef 0%, #eef3f6 100%);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  padding: 40px 28px;
+  background: rgba(16, 32, 51, 0.92);
+  color: #f4f8fb;
+}
+
+.sidebar h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  line-height: 1.1;
+}
+
+.sidebar-copy {
+  color: rgba(244, 248, 251, 0.72);
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: #68c0b3;
+}
+
+.nav {
+  display: grid;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.nav-link {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-link.active {
+  background: #f4f8fb;
+  color: #102033;
+}
+
+.content {
+  padding: 40px;
+}
+
+.page {
+  display: grid;
+  gap: 24px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.page-header p:last-child {
+  max-width: 720px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metric-card,
+.panel,
+.risk-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 36px rgba(16, 32, 51, 0.08);
+}
+
+.metric-card {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+}
+
+.metric-card strong {
+  font-size: 2rem;
+}
+
+.panel {
+  padding: 24px;
+}
+
+.status-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(16, 32, 51, 0.08);
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+.risk-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.risk-level {
+  margin: 0 0 8px;
+  color: #c14c29;
+  font-weight: 700;
+}
+
+.risk-meta {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  font-size: 0.95rem;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.config-grid div {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(104, 192, 179, 0.1);
+}
+
+.config-grid dt {
+  font-weight: 700;
+}
+
+.simple-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 1024px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-grid,
+  .config-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .content,
+  .sidebar {
+    padding: 24px;
+  }
+
+  .metric-grid,
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .risk-card {
+    flex-direction: column;
+  }
+
+  .risk-meta {
+    justify-items: start;
+  }
+}
+
