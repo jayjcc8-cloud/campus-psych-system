@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getActor } from "../../lib/actor";
+import { requireRoles } from "../../lib/authorization";
 import { getPublicConfig, updatePublicConfig } from "./service";
 
 const updatePublicConfigSchema = z.object({
@@ -20,7 +21,7 @@ const updatePublicConfigSchema = z.object({
 export async function registerConfigRoutes(app: FastifyInstance) {
   app.get("/public", async () => getPublicConfig());
 
-  app.patch("/public", async (request) => {
+  app.patch("/public", { preHandler: requireRoles("admin") }, async (request) => {
     const payload = updatePublicConfigSchema.parse(request.body);
     const actor = getActor(request);
 

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getActor } from "../../lib/actor";
+import { requireRoles } from "../../lib/authorization";
 import {
   createAppointment,
   listAppointments,
@@ -35,13 +36,13 @@ const updateStatusSchema = z.object({
 });
 
 export async function registerAppointmentRoutes(app: FastifyInstance) {
-  app.get("/summary", async () => summarizeAppointments());
+  app.get("/summary", { preHandler: requireRoles("admin") }, async () => summarizeAppointments());
 
-  app.get("/", async () => listAppointments());
+  app.get("/", { preHandler: requireRoles("admin") }, async () => listAppointments());
 
-  app.get("/my", async () => listMyAppointments());
+  app.get("/my", { preHandler: requireRoles("student") }, async () => listMyAppointments());
 
-  app.post("/", async (request, reply) => {
+  app.post("/", { preHandler: requireRoles("student") }, async (request, reply) => {
     const payload = createAppointmentSchema.parse(request.body);
     const actor = getActor(request);
 
@@ -54,7 +55,7 @@ export async function registerAppointmentRoutes(app: FastifyInstance) {
     }
   });
 
-  app.patch("/:id/status", async (request, reply) => {
+  app.patch("/:id/status", { preHandler: requireRoles("counselor", "admin") }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const payload = updateStatusSchema.parse(request.body);
     const actor = getActor(request);

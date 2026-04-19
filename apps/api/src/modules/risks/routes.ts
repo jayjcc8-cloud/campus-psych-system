@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getActor } from "../../lib/actor";
+import { requireRoles } from "../../lib/authorization";
 import { listRiskFlags, updateRiskFlag } from "./service";
 
 const updateRiskSchema = z.object({
@@ -10,9 +11,9 @@ const updateRiskSchema = z.object({
 });
 
 export async function registerRiskRoutes(app: FastifyInstance) {
-  app.get("/", async () => listRiskFlags());
+  app.get("/", { preHandler: requireRoles("counselor", "admin") }, async () => listRiskFlags());
 
-  app.patch("/:id", async (request, reply) => {
+  app.patch("/:id", { preHandler: requireRoles("counselor", "admin") }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const payload = updateRiskSchema.parse(request.body);
     const actor = getActor(request);

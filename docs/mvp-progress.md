@@ -6,6 +6,7 @@
 - Monorepo scaffold is in place for API, admin web, miniapp, and shared domain package.
 - Shared domain now contains appointment states, permissions, risk rules, fixtures, and audit log types.
 - API now has a lightweight service layer, SQLite schema, repository layer, write endpoints, and audit logging hooks.
+- API now enforces basic header-based authentication and route-level role guards for admin, counselor, and student access.
 - Admin web and miniapp now include small API clients and will attempt to read from the local API before falling back to fixtures.
 
 ## What is working conceptually
@@ -16,6 +17,7 @@
 - Session record creation can generate risk flags and audit logs.
 - Config updates and risk updates now have write endpoints.
 - Statistics are derived from the persisted repository data instead of static fixtures.
+- Unauthorized requests are rejected with `401`, mismatched roles are rejected with `403`, and public config remains readable without auth headers.
 
 ## Still missing before a real MVP trial
 

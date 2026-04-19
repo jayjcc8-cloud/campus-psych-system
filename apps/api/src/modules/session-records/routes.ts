@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getActor } from "../../lib/actor";
+import { requireRoles } from "../../lib/authorization";
 import { createSessionRecord, listSessionRecords } from "./service";
 
 const createSessionRecordSchema = z.object({
@@ -27,9 +28,9 @@ const createSessionRecordSchema = z.object({
 });
 
 export async function registerSessionRecordRoutes(app: FastifyInstance) {
-  app.get("/", async () => listSessionRecords());
+  app.get("/", { preHandler: requireRoles("counselor", "admin") }, async () => listSessionRecords());
 
-  app.post("/", async (request, reply) => {
+  app.post("/", { preHandler: requireRoles("counselor", "admin") }, async (request, reply) => {
     const payload = createSessionRecordSchema.parse(request.body);
     const actor = getActor(request);
 
