@@ -4,6 +4,7 @@ import type { RequestActor } from "../../lib/actor";
 import { runInTransaction } from "../../db/client";
 import { createId, nowIso } from "../../lib/utils";
 import {
+  cancelAppointmentById,
   countActiveAppointmentsForStudent,
   findAppointmentById,
   getAppointmentSummary,
@@ -28,6 +29,12 @@ interface UpdateAppointmentStatusInput {
   id: string;
   nextStatus: AppointmentStatus;
   actor: RequestActor;
+}
+
+interface CancelMyAppointmentInput {
+  id: string;
+  actor: RequestActor;
+  cancelReason?: string;
 }
 
 export function listAppointments() {
@@ -120,6 +127,49 @@ export function updateAppointmentStatus({
   return {
     ...appointment,
     status: nextStatus,
+    updatedAt
+  };
+}
+
+export function cancelMyAppointment({
+  id,
+  actor,
+  cancelReason
+}: CancelMyAppointmentInput): Appointment | null {
+  const appointment = findAppointmentById(id);
+
+  if (!appointment) {
+    return null;
+  }
+
+  const currentStudentId = getCurrentStudentProfile().id;
+
+  if (appointment.studentId !== currentStudentId) {
+    throw new Error("Student cannot cancel another student's appointment.");
+  }
+
+  if (!canTransitionAppointment(appointment.status, "cancelled")) {
+    throw new Error("Only pending or confirmed appointments can be cancelled.");
+  }
+
+  const updatedAt = nowIso();
+  const normalizedReason = cancelReason?.trim() || "学生在小程序中主动取消预约。";
+
+  runInTransaction(() => {
+    cancelAppointmentById(id, updatedAt, normalizedReason);
+    appendAuditLog(
+      actor,
+      "appointment.cancel",
+      "appointment",
+      appointment.id,
+      "Student cancelled booking from miniapp."
+    );
+  });
+
+  return {
+    ...appointment,
+    status: "cancelled",
+    cancelReason: normalizedReason,
     updatedAt
   };
 }

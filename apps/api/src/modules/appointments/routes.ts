@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getActor } from "../../lib/actor";
 import { requireRoles } from "../../lib/authorization";
 import {
+  cancelMyAppointment,
   createAppointment,
   listAppointments,
   listMyAppointments,
@@ -35,6 +36,10 @@ const updateStatusSchema = z.object({
   ])
 });
 
+const cancelAppointmentSchema = z.object({
+  cancelReason: z.string().max(200).optional()
+});
+
 export async function registerAppointmentRoutes(app: FastifyInstance) {
   app.get("/summary", { preHandler: requireRoles("admin") }, async () => summarizeAppointments());
 
@@ -52,6 +57,31 @@ export async function registerAppointmentRoutes(app: FastifyInstance) {
       return reply.code(409).send({
         message: error instanceof Error ? error.message : "Failed to create appointment."
       });
+    }
+  });
+
+  app.patch("/:id/cancel", { preHandler: requireRoles("student") }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const payload = cancelAppointmentSchema.parse(request.body ?? {});
+    const actor = getActor(request);
+
+    try {
+      const appointment = cancelMyAppointment({
+        id,
+        actor,
+        cancelReason: payload.cancelReason
+      });
+
+      if (!appointment) {
+        return reply.code(404).send({ message: "Appointment not found." });
+      }
+
+      return appointment;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to cancel appointment.";
+      const statusCode = message.includes("another student's appointment") ? 403 : 409;
+
+      return reply.code(statusCode).send({ message });
     }
   });
 

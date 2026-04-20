@@ -51,3 +51,10 @@ export function createAppointment(payload) {
     body: payload
   });
 }
+
+export function cancelAppointment(id, payload = {}) {
+  return request(`/appointments/${id}/cancel`, {
+    method: "PATCH",
+    body: payload
+  });
+}

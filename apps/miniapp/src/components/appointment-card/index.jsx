@@ -14,14 +14,19 @@ export default function AppointmentCard({
   appointment,
   counselors = [],
   className = "",
-  showActions = false
+  showActions = false,
+  canCancel = false,
+  cancelling = false,
+  onCancel
 }) {
   const handleView = () => {
     Taro.showModal({
       title: "预约详情",
       content: `咨询老师：${formatCounselorName(appointment.counselorId, counselors)}\n问题类型：${formatIssueType(
         appointment.issueEntryType
-      )}\n提交时间：${formatDateTime(appointment.createdAt)}\n补充说明：${appointment.remark ?? "未填写"}`
+      )}\n提交时间：${formatDateTime(appointment.createdAt)}\n补充说明：${appointment.remark ?? "未填写"}${
+        appointment.cancelReason ? `\n取消原因：${appointment.cancelReason}` : ""
+      }`
     });
   };
 
@@ -53,9 +58,16 @@ export default function AppointmentCard({
           <AppButton block={false} variant="secondary" onClick={handleView}>
             查看详情
           </AppButton>
-          <AppButton block={false} variant="ghost" disabled>
-            取消预约待开放
-          </AppButton>
+          {canCancel ? (
+            <AppButton
+              block={false}
+              variant="ghost"
+              loading={cancelling}
+              onClick={onCancel}
+            >
+              {cancelling ? "取消中..." : "取消预约"}
+            </AppButton>
+          ) : null}
         </View>
       ) : null}
     </AppCard>

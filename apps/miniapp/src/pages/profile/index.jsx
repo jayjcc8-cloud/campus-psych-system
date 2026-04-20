@@ -85,9 +85,9 @@ export default function ProfilePage() {
         <AppCard>
           <SectionHeader title="当前服务体验" description="目前先把最核心的预约和说明链路做清楚，后续再补更多能力。" />
           <View className="privacy-note">
-            <Text className="privacy-line">• 已支持查看预约、提交预约和查看隐私说明。</Text>
+            <Text className="privacy-line">• 已支持查看预约、提交预约、取消预约和查看隐私说明。</Text>
             <Text className="privacy-line">• 页面保持校园支持场景，不使用医疗化表达。</Text>
-            <Text className="privacy-line">• 后续会继续补取消预约、协议确认与身份绑定。</Text>
+            <Text className="privacy-line">• 后续会继续补协议确认与身份绑定。</Text>
           </View>
         </AppCard>
       </View>

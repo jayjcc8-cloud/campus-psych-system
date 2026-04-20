@@ -125,6 +125,17 @@ export function updateAppointmentStatusById(id: string, status: AppointmentStatu
   ).run(status, updatedAt, id);
 }
 
+export function cancelAppointmentById(id: string, updatedAt: string, cancelReason: string | null) {
+  const db = getDatabase();
+  db.prepare(
+    `UPDATE appointments
+     SET status = 'cancelled',
+         cancel_reason = ?,
+         updated_at = ?
+     WHERE id = ?`
+  ).run(cancelReason, updatedAt, id);
+}
+
 export function getAppointmentSummary() {
   const db = getDatabase();
   const total = (db.prepare(`SELECT COUNT(*) AS count FROM appointments`).get() as { count: number }).count;
@@ -151,4 +162,3 @@ export function getAppointmentSummary() {
     completed
   };
 }
-

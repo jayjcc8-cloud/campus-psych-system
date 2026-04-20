@@ -1,5 +1,5 @@
 import { View, Text } from "@tarojs/components";
-import { useDidShow } from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import AppButton from "../../components/app-button";
 import AppCard from "../../components/app-card";
@@ -7,7 +7,7 @@ import AppointmentCard from "../../components/appointment-card";
 import EmptyState from "../../components/empty-state";
 import PageHeader from "../../components/page-header";
 import SectionHeader from "../../components/section-header";
-import { getCounselors, getMyAppointments } from "../../lib/api";
+import { cancelAppointment, getCounselors, getMyAppointments } from "../../lib/api";
 import { appointmentsFixture, counselorsFixture } from "../../lib/fixtures";
 
 const statusSections = [
@@ -26,6 +26,7 @@ export default function MyPage() {
   const [activeStatus, setActiveStatus] = useState("all");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [cancellingId, setCancellingId] = useState("");
 
   const loadAppointments = () => {
     setLoading(true);
@@ -58,6 +59,57 @@ export default function MyPage() {
     loadAppointments();
   });
 
+  const formatCancelError = (cancelError) => {
+    const message = cancelError instanceof Error ? cancelError.message : "";
+
+    if (message.includes("Only pending or confirmed appointments")) {
+      return "这条预约当前不能取消，请先查看最新状态。";
+    }
+
+    if (message.includes("Appointment not found")) {
+      return "这条预约已不存在，列表已经为你刷新。";
+    }
+
+    return message || "取消预约失败，请稍后再试。";
+  };
+
+  const handleCancel = async (appointment) => {
+    const result = await Taro.showModal({
+      title: "确认取消预约",
+      content: "取消后，这条预约会从进行中状态移到“已取消”，你之后仍然可以重新预约。"
+    });
+
+    if (!result.confirm) {
+      return;
+    }
+
+    setCancellingId(appointment.id);
+    setLoadError("");
+
+    try {
+      await cancelAppointment(appointment.id, {
+        cancelReason: "学生在小程序中主动取消预约。"
+      });
+
+      Taro.showToast({
+        title: "已取消预约",
+        icon: "success"
+      });
+      loadAppointments();
+    } catch (cancelError) {
+      const message = formatCancelError(cancelError);
+
+      setLoadError(message);
+      Taro.showToast({
+        title: message,
+        icon: "none"
+      });
+      loadAppointments();
+    } finally {
+      setCancellingId("");
+    }
+  };
+
   const visibleAppointments =
     activeStatus === "all"
       ? appointments
@@ -68,7 +120,7 @@ export default function MyPage() {
       <PageHeader
         kicker="我的预约"
         title="把预约记录按状态整理好"
-        subtitle="你可以更快看到哪一条还在等待确认，哪一条已经完成，也为后续取消预约入口预留了位置。"
+        subtitle="你可以更快看到哪一条还在等待确认，哪一条已经完成；进行中的预约也可以直接在这里取消。"
       />
 
       <AppCard tone="accent">
@@ -110,7 +162,10 @@ export default function MyPage() {
               appointment={appointment}
               counselors={counselors}
               key={appointment.id}
-              showActions={activeStatus !== "cancelled" && activeStatus !== "expired"}
+              showActions
+              canCancel={appointment.status === "pending" || appointment.status === "confirmed"}
+              cancelling={cancellingId === appointment.id}
+              onCancel={() => handleCancel(appointment)}
             />
           ))
         ) : (
