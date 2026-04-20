@@ -40,6 +40,55 @@ export default function AppointmentPage() {
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
 
+  const loadSchedulesForCounselor = async (counselorId, { staleSelectionMessage = "" } = {}) => {
+    if (!counselorId) {
+      return;
+    }
+
+    setSlotLoading(true);
+
+    try {
+      const response = await getCounselorDetail(counselorId);
+      const availableSchedules = response.schedules.filter((slot) => slot.available);
+
+      setSchedules(availableSchedules);
+      setSelectedScheduleId((current) =>
+        current && availableSchedules.some((slot) => slot.id === current)
+          ? current
+          : availableSchedules[0]?.id ?? ""
+      );
+      setSlotError(staleSelectionMessage);
+    } catch {
+      const fallback = scheduleFixture.filter(
+        (slot) => slot.counselorId === counselorId && slot.available
+      );
+
+      setSchedules(fallback);
+      setSelectedScheduleId(fallback[0]?.id ?? "");
+      setSlotError("可预约时段暂时没有完全刷新，已展示本地可用时间。");
+    } finally {
+      setSlotLoading(false);
+    }
+  };
+
+  const formatSubmitError = (submitError) => {
+    const message = submitError instanceof Error ? submitError.message : "";
+
+    if (message.includes("already been booked")) {
+      return "这个时间段刚刚被约走了，我们已经为你刷新了最新可选时间。";
+    }
+
+    if (message.includes("is unavailable")) {
+      return "这个时间段当前不可用，我们已经为你刷新了最新可选时间。";
+    }
+
+    if (message.includes("active booking limit")) {
+      return "你当前已有 2 条进行中的预约，请先等待确认或完成后再继续预约。";
+    }
+
+    return message || "预约提交失败，请稍后再试。";
+  };
+
   useEffect(() => {
     getCounselors()
       .then((response) => {
@@ -73,28 +122,7 @@ export default function AppointmentPage() {
 
     setError("");
     setSlotError("");
-    setSlotLoading(true);
-    getCounselorDetail(selectedCounselorId)
-      .then((response) => {
-        const availableSchedules = response.schedules.filter((slot) => slot.available);
-        setSchedules(availableSchedules);
-        setSelectedScheduleId((current) =>
-          current && availableSchedules.some((slot) => slot.id === current)
-            ? current
-            : availableSchedules[0]?.id ?? ""
-        );
-      })
-      .catch(() => {
-        setSlotError("可预约时段暂时没有完全刷新，已展示本地可用时间。");
-        const fallback = scheduleFixture.filter(
-          (slot) => slot.counselorId === selectedCounselorId && slot.available
-        );
-        setSchedules(fallback);
-        setSelectedScheduleId(fallback[0]?.id ?? "");
-      })
-      .finally(() => {
-        setSlotLoading(false);
-      });
+    loadSchedulesForCounselor(selectedCounselorId);
   }, [selectedCounselorId]);
 
   const selectedCounselor =
@@ -156,8 +184,17 @@ export default function AppointmentPage() {
       });
       switchStudentTab("/pages/my/index");
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : "预约提交失败，请稍后再试。";
+      const message = formatSubmitError(submitError);
       setError(message);
+
+      if (
+        message.includes("刷新了最新可选时间") &&
+        selectedCounselorId
+      ) {
+        await loadSchedulesForCounselor(selectedCounselorId, {
+          staleSelectionMessage: "可预约时段已更新，请重新确认一个时间段。"
+        });
+      }
     } finally {
       setSubmitting(false);
     }
