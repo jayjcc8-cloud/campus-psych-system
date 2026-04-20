@@ -3,17 +3,26 @@ import Taro, { useDidShow, useRouter } from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import AppButton from "../../components/app-button";
 import AppCard from "../../components/app-card";
+import EmptyState from "../../components/empty-state";
+import PageHeader from "../../components/page-header";
+import SectionHeader from "../../components/section-header";
 import { createAppointment, getCounselorDetail, getCounselors } from "../../lib/api";
+import {
+  formatCounselorDisplayName,
+  formatCounselorSummary,
+  formatDateTime,
+  formatIssueType
+} from "../../lib/display";
 import { counselorsFixture, scheduleFixture } from "../../lib/fixtures";
 import { switchStudentTab } from "../../lib/tabbar";
 
 const issueOptions = [
-  { value: "academic_pressure", label: "Academic pressure" },
-  { value: "sleep", label: "Sleep" },
-  { value: "relationship", label: "Relationship" },
-  { value: "emotion", label: "Emotion" },
-  { value: "career", label: "Career" },
-  { value: "other", label: "Other" }
+  { value: "academic_pressure", label: "学业压力" },
+  { value: "sleep", label: "睡眠状态" },
+  { value: "relationship", label: "关系困扰" },
+  { value: "emotion", label: "情绪波动" },
+  { value: "career", label: "发展方向" },
+  { value: "other", label: "其他" }
 ];
 
 export default function AppointmentPage() {
@@ -28,6 +37,8 @@ export default function AppointmentPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [datePreset, setDatePreset] = useState("today");
+  const [slotLoading, setSlotLoading] = useState(false);
+  const [slotError, setSlotError] = useState("");
 
   useEffect(() => {
     getCounselors()
@@ -61,6 +72,8 @@ export default function AppointmentPage() {
     }
 
     setError("");
+    setSlotError("");
+    setSlotLoading(true);
     getCounselorDetail(selectedCounselorId)
       .then((response) => {
         const availableSchedules = response.schedules.filter((slot) => slot.available);
@@ -72,11 +85,15 @@ export default function AppointmentPage() {
         );
       })
       .catch(() => {
+        setSlotError("可预约时段暂时没有完全刷新，已展示本地可用时间。");
         const fallback = scheduleFixture.filter(
           (slot) => slot.counselorId === selectedCounselorId && slot.available
         );
         setSchedules(fallback);
         setSelectedScheduleId(fallback[0]?.id ?? "");
+      })
+      .finally(() => {
+        setSlotLoading(false);
       });
   }, [selectedCounselorId]);
 
@@ -116,7 +133,7 @@ export default function AppointmentPage() {
 
   const handleSubmit = async () => {
     if (!selectedCounselorId || !selectedScheduleId) {
-      setError("Please choose a counselor and an available slot.");
+      setError("请先选择咨询老师和可预约时段。");
       return;
     }
 
@@ -132,14 +149,14 @@ export default function AppointmentPage() {
         remark: remark.trim() || undefined
       });
 
-      setNotice(`Appointment ${appointment.id} submitted.`);
+      setNotice(`预约已提交，编号 ${appointment.id}。`);
       Taro.showToast({
         title: "预约成功",
         icon: "success"
       });
       switchStudentTab("/pages/my/index");
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : "Failed to submit appointment.";
+      const message = submitError instanceof Error ? submitError.message : "预约提交失败，请稍后再试。";
       setError(message);
     } finally {
       setSubmitting(false);
@@ -148,18 +165,31 @@ export default function AppointmentPage() {
 
   return (
     <View className="page-shell">
+      <PageHeader
+        kicker="预约"
+        title="一屏完成预约"
+        subtitle="我们把选择信息、确认时间和提交反馈放在同一条路径里，尽量减少来回跳转。"
+      />
+
       <AppCard tone="accent">
-        <Text className="section-kicker">预约</Text>
-        <Text className="section-title">一屏完成预约</Text>
-        <Text className="section-copy">选择咨询师、日期偏好和时间段后，就可以直接提交，减少来回跳转。</Text>
+        <SectionHeader title="当前进度" description="先确认咨询老师和时间，再决定是否补充说明。" />
+        <View className="progress-strip">
+          <Text className="progress-chip is-active">1 选择信息</Text>
+          <Text className="progress-chip is-active">2 确认时间</Text>
+          <Text className="progress-chip">3 提交完成</Text>
+        </View>
       </AppCard>
 
+      {selectedCounselor ? (
+        <AppCard className="selected-counselor-card">
+          <SectionHeader title="已选咨询老师" description="你可以随时在下面切换其他咨询老师，不会丢失当前页面。" />
+          <Text className="selected-counselor-name">{formatCounselorDisplayName(selectedCounselor.displayName)}</Text>
+          <Text className="section-copy">{formatCounselorSummary(selectedCounselor)}</Text>
+        </AppCard>
+      ) : null}
+
       <AppCard className="booking-card">
-        <Text className="section-title">预约信息</Text>
-        <Text className="booking-meta">默认方式：线下面谈</Text>
-        {selectedCounselor ? (
-          <Text className="booking-meta">当前咨询师：{selectedCounselor.displayName}</Text>
-        ) : null}
+        <SectionHeader title="预约信息" description="默认方式为线下面谈。补充说明是可选项，先完成预约更重要。" />
         {notice ? <Text className="success-banner">{notice}</Text> : null}
         {error ? <Text className="error-banner">{error}</Text> : null}
 
@@ -173,7 +203,7 @@ export default function AppointmentPage() {
                 variant="soft"
                 onClick={() => setSelectedCounselorId(counselor.id)}
               >
-                {counselor.displayName}
+                {formatCounselorDisplayName(counselor.displayName)}
               </AppButton>
             ))}
           </View>
@@ -206,6 +236,8 @@ export default function AppointmentPage() {
           </View>
 
           <Text className="field-label">时间段</Text>
+          {slotLoading ? <Text className="inline-note">正在加载可预约时段...</Text> : null}
+          {slotError ? <Text className="error-banner">{slotError}</Text> : null}
           <View className="slot-stack">
             {visibleSchedules.length > 0 ? (
               visibleSchedules.map((slot) => (
@@ -215,46 +247,48 @@ export default function AppointmentPage() {
                   variant="soft"
                   onClick={() => setSelectedScheduleId(slot.id)}
                 >
-                  <Text className="slot-time">{slot.startTime.slice(11, 16)}</Text>
-                  <Text className="slot-subtitle">{slot.endTime.slice(11, 16)}</Text>
+                  <Text className="slot-time">{formatDateTime(slot.startTime)}</Text>
+                  <Text className="slot-subtitle">结束于 {formatDateTime(slot.endTime)}</Text>
                 </AppButton>
               ))
             ) : (
-              <Text className="empty-state">当前日期筛选下暂无可预约时段，可以换一个日期试试。</Text>
+              <EmptyState title="当前筛选下暂无可预约时段" description="可以换一个日期试试，或者先切换到其他咨询老师。" />
             )}
           </View>
 
           <AppCard className="summary-card">
-            <Text className="field-label">确认信息</Text>
+            <SectionHeader title="确认信息" description="提交前只看三项：咨询老师、问题类型和你选择的时间段。" />
             <View className="summary-grid">
               <View className="summary-item">
                 <Text className="summary-label">咨询师</Text>
-                <Text className="summary-value">{selectedCounselor?.displayName ?? "未选择"}</Text>
+                <Text className="summary-value">
+                  {selectedCounselor ? formatCounselorDisplayName(selectedCounselor.displayName) : "未选择"}
+                </Text>
               </View>
               <View className="summary-item">
                 <Text className="summary-label">问题类型</Text>
-                <Text className="summary-value">{issueOptions.find((option) => option.value === issueType)?.label ?? issueType}</Text>
+                <Text className="summary-value">{formatIssueType(issueType)}</Text>
               </View>
               <View className="summary-item">
                 <Text className="summary-label">时间段</Text>
                 <Text className="summary-value">
-                  {visibleSchedules.find((slot) => slot.id === selectedScheduleId)?.startTime.slice(0, 16) ?? "未选择"}
+                  {formatDateTime(visibleSchedules.find((slot) => slot.id === selectedScheduleId)?.startTime) ?? "未选择"}
                 </Text>
               </View>
             </View>
           </AppCard>
 
-          <Text className="field-label">备注</Text>
+          <Text className="field-label">补充说明（可选）</Text>
           <Textarea
             className="form-textarea"
             maxlength={300}
-            placeholder="可选填写，帮助咨询师提前了解你的情况。"
+            placeholder="如果你愿意，可以简单写下当前最想聊的情况，帮助咨询老师提前了解。"
             value={remark}
             onInput={(event) => setRemark(event.detail.value)}
           />
         </View>
 
-        <AppButton disabled={submitting || !selectedScheduleId} onClick={handleSubmit}>
+        <AppButton disabled={submitting || !selectedScheduleId} loading={submitting} onClick={handleSubmit}>
           {submitting ? "提交中..." : "确认预约"}
         </AppButton>
       </AppCard>

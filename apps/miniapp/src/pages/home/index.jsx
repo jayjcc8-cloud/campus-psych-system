@@ -3,32 +3,57 @@ import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import AppButton from "../../components/app-button";
 import AppCard from "../../components/app-card";
-import StatusTag from "../../components/status-tag";
-import { getMyAppointments, getPublicConfig } from "../../lib/api";
-import { appointmentsFixture, publicConfigFixture } from "../../lib/fixtures";
+import AppointmentCard from "../../components/appointment-card";
+import EmotionEntryCard from "../../components/emotion-entry-card";
+import EmptyState from "../../components/empty-state";
+import PageHeader from "../../components/page-header";
+import SectionHeader from "../../components/section-header";
+import { getCounselors, getMyAppointments, getPublicConfig } from "../../lib/api";
+import { appointmentsFixture, counselorsFixture, publicConfigFixture } from "../../lib/fixtures";
 import { openCounselorsTab, switchStudentTab } from "../../lib/tabbar";
 
 const entries = [
-  { emoji: "🙂", label: "还可以", hint: "想提前聊聊学习与状态", issueType: "academic_pressure" },
-  { emoji: "😐", label: "有点累", hint: "最近睡眠或节奏被打乱", issueType: "sleep" },
-  { emoji: "😔", label: "有些难受", hint: "关系、情绪或压力想被看见", issueType: "emotion" }
+  { label: "最近压力很大", hint: "从学业、节奏或近期压力开始梳理。", issueType: "academic_pressure" },
+  { label: "睡眠状态不好", hint: "先聊聊作息、疲惫感和持续紧绷。", issueType: "sleep" },
+  { label: "情感上有些困扰", hint: "关系里的委屈、误解或失落都可以被看见。", issueType: "relationship" },
+  { label: "想找人聊聊", hint: "不必先定义问题，先给自己一个表达出口。", issueType: "emotion" }
 ];
 
 export default function HomePage() {
   const [appointments, setAppointments] = useState(appointmentsFixture);
+  const [counselors, setCounselors] = useState(counselorsFixture);
   const [config, setConfig] = useState(publicConfigFixture);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    getMyAppointments()
-      .then(setAppointments)
-      .catch(() => {
-        return;
-      });
+    setLoading(true);
+    setLoadError("");
 
-    getPublicConfig()
-      .then(setConfig)
-      .catch(() => {
-        return;
+    Promise.allSettled([getMyAppointments(), getPublicConfig(), getCounselors()])
+      .then(([appointmentsResult, configResult, counselorsResult]) => {
+        if (appointmentsResult.status === "fulfilled") {
+          setAppointments(appointmentsResult.value);
+        }
+
+        if (configResult.status === "fulfilled") {
+          setConfig(configResult.value);
+        }
+
+        if (counselorsResult.status === "fulfilled") {
+          setCounselors(counselorsResult.value);
+        }
+
+        if (
+          appointmentsResult.status === "rejected" &&
+          configResult.status === "rejected" &&
+          counselorsResult.status === "rejected"
+        ) {
+          setLoadError("首页信息加载稍慢，下面的入口仍然可以正常使用。");
+        }
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
@@ -40,32 +65,27 @@ export default function HomePage() {
 
   return (
     <View className="page-shell">
-      <View className="page-header">
-        <Text className="section-kicker">首页</Text>
-        <Text className="page-title">你好，今天感觉怎么样？</Text>
-        <Text className="page-subtitle">用最少的信息负担，帮你完成一次私密、清晰的校园心理咨询预约。</Text>
-      </View>
+      <PageHeader
+        kicker="首页"
+        title="你好，今天想从哪里开始？"
+        subtitle="这是一个面向校园支持场景的预约入口。页面会尽量少一点负担，多一点清晰和私密感。"
+      />
+
+      {loading ? <Text className="inline-note">正在整理你的预约状态与服务公告...</Text> : null}
+      {loadError ? <Text className="error-banner">{loadError}</Text> : null}
 
       <AppCard tone="accent">
-        <Text className="section-title">情绪入口</Text>
-        <Text className="section-copy">不需要先想清楚所有问题，只要从此刻的感受开始。</Text>
+        <SectionHeader title="从此刻的感受开始" description="不需要先解释完整原因，先选一个更接近你当前状态的入口就好。" />
         <View className="mood-grid">
           {entries.map((entry) => (
-            <AppButton className="mood-button" key={entry.label} variant="soft" onClick={() => openCounselors(entry.issueType)}>
-              <View className="mood-button-content">
-                <Text className="mood-emoji">{entry.emoji}</Text>
-                <Text className="mood-title">{entry.label}</Text>
-                <Text className="mood-hint">{entry.hint}</Text>
-              </View>
-            </AppButton>
+            <EmotionEntryCard key={entry.label} title={entry.label} description={entry.hint} onClick={() => openCounselors(entry.issueType)} />
           ))}
         </View>
       </AppCard>
 
       <View className="section-stack">
         <AppCard>
-          <Text className="section-title">核心操作</Text>
-          <Text className="section-copy">优先把最重要的事情放到最前面：预约、查看记录、紧急求助。</Text>
+          <SectionHeader title="快捷服务" description="保留最常用的几个入口，不把首页做成资讯页，也不打断你当前的节奏。" />
           <View className="shortcut-grid">
             <AppButton onClick={() => openCounselors()}>预约心理咨询</AppButton>
             <AppButton variant="secondary" onClick={() => switchStudentTab("/pages/counselors/index")}>
@@ -74,35 +94,31 @@ export default function HomePage() {
             <AppButton variant="secondary" onClick={() => switchStudentTab("/pages/my/index")}>
               我的预约
             </AppButton>
-            <AppButton variant="ghost" onClick={() => switchStudentTab("/pages/profile/index")}>
-              我的
-            </AppButton>
             <AppButton variant="ghost" onClick={() => Taro.navigateTo({ url: "/pages/emergency/index" })}>
               紧急求助
+            </AppButton>
+            <AppButton variant="ghost" onClick={() => switchStudentTab("/pages/profile/index")}>
+              我的
             </AppButton>
           </View>
         </AppCard>
 
         <AppCard>
-          <Text className="section-title">最近预约</Text>
+          <SectionHeader title="最近预约" description="如果你已经提交过预约，可以从这里快速确认当前状态。" />
           {latestAppointment ? (
-            <View className="appointment-brief">
-              <View className="tag-row">
-                <Text className="brief-title">{latestAppointment.id}</Text>
-                <StatusTag status={latestAppointment.status} />
-              </View>
-              <Text className="section-copy">咨询师：{latestAppointment.counselorId}</Text>
-              <Text className="section-copy">问题类型：{latestAppointment.issueEntryType}</Text>
-            </View>
+            <AppointmentCard appointment={latestAppointment} counselors={counselors} />
           ) : (
-            <Text className="empty-state">你还没有预约记录，准备好时可以从上方入口开始。</Text>
+            <EmptyState title="还没有预约记录" description="准备好时，可以从上方入口开始；系统会在提交后明确告诉你当前状态。" />
           )}
         </AppCard>
 
         <AppCard>
-          <Text className="section-title">服务公告</Text>
-          <Text className="section-copy">{config.announcement}</Text>
-          <Text className="inline-note">预约信息仅本人可见，敏感数据默认不在学生端公开展示。</Text>
+          <SectionHeader title="咨询须知" description="先把和预约直接相关的信息说清楚，减少来回确认。" />
+          <View className="notice-stack">
+            <Text className="section-copy">{config.announcement}</Text>
+            <Text className="section-copy">{config.bookingPolicy}</Text>
+            <Text className="inline-note">预约信息仅本人可见，学生端默认不展示额外敏感字段。</Text>
+          </View>
         </AppCard>
       </View>
     </View>

@@ -10,12 +10,14 @@ export default function AppButton({
   variant = "primary",
   block = true,
   disabled = false,
+  loading = false,
   onClick
 }) {
   return (
     <Button
       className={joinClasses("app-button", `app-button-${variant}`, block ? "app-button-block" : "", className)}
-      disabled={disabled}
+      disabled={disabled || loading}
+      loading={loading}
       onClick={onClick}
     >
       {children}

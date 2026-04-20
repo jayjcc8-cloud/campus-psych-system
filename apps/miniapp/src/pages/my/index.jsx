@@ -1,12 +1,17 @@
 import { View, Text } from "@tarojs/components";
 import { useDidShow } from "@tarojs/taro";
 import { useEffect, useState } from "react";
+import AppButton from "../../components/app-button";
 import AppCard from "../../components/app-card";
-import StatusTag from "../../components/status-tag";
-import { getMyAppointments } from "../../lib/api";
-import { appointmentsFixture } from "../../lib/fixtures";
+import AppointmentCard from "../../components/appointment-card";
+import EmptyState from "../../components/empty-state";
+import PageHeader from "../../components/page-header";
+import SectionHeader from "../../components/section-header";
+import { getCounselors, getMyAppointments } from "../../lib/api";
+import { appointmentsFixture, counselorsFixture } from "../../lib/fixtures";
 
 const statusSections = [
+  { key: "all", title: "全部" },
   { key: "pending", title: "待确认" },
   { key: "confirmed", title: "已确认" },
   { key: "completed", title: "已完成" },
@@ -17,12 +22,31 @@ const statusSections = [
 
 export default function MyPage() {
   const [appointments, setAppointments] = useState(appointmentsFixture);
+  const [counselors, setCounselors] = useState(counselorsFixture);
+  const [activeStatus, setActiveStatus] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const loadAppointments = () => {
-    getMyAppointments()
-      .then(setAppointments)
-      .catch(() => {
-        return;
+    setLoading(true);
+    setLoadError("");
+
+    Promise.allSettled([getMyAppointments(), getCounselors()])
+      .then(([appointmentsResult, counselorsResult]) => {
+        if (appointmentsResult.status === "fulfilled") {
+          setAppointments(appointmentsResult.value);
+        }
+
+        if (counselorsResult.status === "fulfilled") {
+          setCounselors(counselorsResult.value);
+        }
+
+        if (appointmentsResult.status === "rejected") {
+          setLoadError("预约列表暂时没有完全刷新，已展示当前可用记录。");
+        }
+      })
+      .finally(() => {
+        setLoading(false);
       });
   };
 
@@ -34,45 +58,67 @@ export default function MyPage() {
     loadAppointments();
   });
 
+  const visibleAppointments =
+    activeStatus === "all"
+      ? appointments
+      : appointments.filter((appointment) => appointment.status === activeStatus);
+
   return (
     <View className="page-shell">
+      <PageHeader
+        kicker="我的预约"
+        title="把预约记录按状态整理好"
+        subtitle="你可以更快看到哪一条还在等待确认，哪一条已经完成，也为后续取消预约入口预留了位置。"
+      />
+
       <AppCard tone="accent">
-        <Text className="section-kicker">我的预约</Text>
-        <Text className="section-title">你的预约记录会按状态整理。</Text>
-        <Text className="section-copy">这样更容易确认哪一条还在等待、哪一条已经完成，也能减少信息混在一起带来的焦虑。</Text>
+        <SectionHeader title="状态筛选" description="先按状态看，再决定是否查看详情，减少所有记录堆在一起的负担。" />
+        <View className="status-filter-grid">
+          {statusSections.map((section) => {
+            const count =
+              section.key === "all"
+                ? appointments.length
+                : appointments.filter((appointment) => appointment.status === section.key).length;
+
+            return (
+              <AppButton
+                className={section.key === activeStatus ? "status-filter-card is-active" : "status-filter-card"}
+                key={section.key}
+                variant="soft"
+                onClick={() => setActiveStatus(section.key)}
+              >
+                <View className="status-filter-content">
+                  <Text className="status-filter-title">{section.title}</Text>
+                  <Text className="status-filter-count">{count}</Text>
+                </View>
+              </AppButton>
+            );
+          })}
+        </View>
       </AppCard>
 
+      <View className="tag-row list-meta-row">
+        <Text className="inline-note">{loading ? "正在同步你的预约记录..." : `共 ${appointments.length} 条预约记录`}</Text>
+        <Text className="inline-note">仅展示你自己的预约信息</Text>
+      </View>
+      {loadError ? <Text className="error-banner">{loadError}</Text> : null}
+
       <View className="section-stack">
-        {statusSections.map((section) => {
-          const sectionItems = appointments.filter((appointment) => appointment.status === section.key);
-
-          if (sectionItems.length === 0) {
-            return null;
-          }
-
-          return (
-            <AppCard key={section.key}>
-              <View className="tag-row">
-                <Text className="section-title">{section.title}</Text>
-                <Text className="count-badge">{sectionItems.length}</Text>
-              </View>
-              <View className="appointment-list">
-                {sectionItems.map((appointment) => (
-                  <View className="appointment-item" key={appointment.id}>
-                    <View className="tag-row">
-                      <Text className="brief-title">{appointment.id}</Text>
-                      <StatusTag status={appointment.status} />
-                    </View>
-                    <Text className="section-copy">咨询师：{appointment.counselorId}</Text>
-                    <Text className="section-copy">问题类型：{appointment.issueEntryType}</Text>
-                    <Text className="section-copy">备注：{appointment.remark ?? "未填写"}</Text>
-                  </View>
-                ))}
-              </View>
-            </AppCard>
-          );
-        })}
-        {appointments.length === 0 ? <Text className="empty-state">当前还没有预约记录。</Text> : null}
+        {visibleAppointments.length > 0 ? (
+          visibleAppointments.map((appointment) => (
+            <AppointmentCard
+              appointment={appointment}
+              counselors={counselors}
+              key={appointment.id}
+              showActions={activeStatus !== "cancelled" && activeStatus !== "expired"}
+            />
+          ))
+        ) : (
+          <EmptyState
+            title={appointments.length === 0 ? "当前还没有预约记录" : "这个状态下还没有预约"}
+            description={appointments.length === 0 ? "准备好时，可以从首页或咨询师页开始预约。" : "你可以切换到其他状态，看看已经提交或已完成的预约记录。"}
+          />
+        )}
       </View>
     </View>
   );

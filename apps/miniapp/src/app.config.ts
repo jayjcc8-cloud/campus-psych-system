@@ -8,8 +8,8 @@ export default defineAppConfig({
     "pages/emergency/index"
   ],
   window: {
-    navigationBarTitleText: "Campus Psych",
-    navigationBarBackgroundColor: "#EAF7F6",
+    navigationBarTitleText: "校园心理支持",
+    navigationBarBackgroundColor: "#F6FAFA",
     navigationBarTextStyle: "black",
     backgroundTextStyle: "light"
   },
@@ -33,7 +33,7 @@ export default defineAppConfig({
       },
       {
         pagePath: "pages/my/index",
-        text: "预约",
+        text: "我的预约",
         iconPath: "assets/tabbar/appointments.png",
         selectedIconPath: "assets/tabbar/appointments-active.png"
       },
