@@ -50,11 +50,24 @@ function mapCounselor(row: CounselorRow): Counselor {
     specialty: JSON.parse(row.specialty_json) as string[],
     intro: row.intro,
     gender: row.gender ?? undefined,
-    nextAvailableSlot: row.next_available_slot
+    nextAvailableSlot: getNextAvailableSlot(row.id)
   };
 }
 
 function mapSchedule(row: ScheduleRow): CounselorScheduleSlot {
+  const bookable = row.available === 1 && !hasActiveAppointmentForScheduleId(row.id);
+
+  return {
+    id: row.id,
+    counselorId: row.counselor_id,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    capacity: row.capacity,
+    available: bookable
+  };
+}
+
+function mapScheduleForCounselorWorkspace(row: ScheduleRow): CounselorScheduleSlot {
   return {
     id: row.id,
     counselorId: row.counselor_id,
@@ -63,6 +76,43 @@ function mapSchedule(row: ScheduleRow): CounselorScheduleSlot {
     capacity: row.capacity,
     available: row.available === 1
   };
+}
+
+function hasActiveAppointmentForScheduleId(scheduleSlotId: string) {
+  const db = getDatabase();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM appointments
+       WHERE schedule_slot_id = ?
+         AND status IN ('pending', 'confirmed')`
+    )
+    .get(scheduleSlotId) as { count: number };
+
+  return row.count > 0;
+}
+
+function getNextAvailableSlot(counselorId: string) {
+  const db = getDatabase();
+  const row = db
+    .prepare(
+      `SELECT schedules.start_time
+       FROM counselor_schedules schedules
+       WHERE schedules.counselor_id = ?
+         AND schedules.available = 1
+         AND schedules.start_time >= ?
+         AND NOT EXISTS (
+           SELECT 1
+           FROM appointments appointments
+           WHERE appointments.schedule_slot_id = schedules.id
+             AND appointments.status IN ('pending', 'confirmed')
+         )
+       ORDER BY schedules.start_time ASC
+       LIMIT 1`
+    )
+    .get(counselorId, new Date().toISOString()) as { start_time: string } | undefined;
+
+  return row?.start_time ?? null;
 }
 
 function findStudentRow(studentId: string) {
@@ -186,6 +236,135 @@ export function getCounselorDetail(id: string) {
     counselor: counselor ? mapCounselor(counselor) : null,
     schedules: schedules.map(mapSchedule)
   };
+}
+
+export function getCounselorDetailByUserId(userId: string) {
+  const counselorId = getCounselorIdByUserId(userId);
+
+  if (!counselorId) {
+    return { counselor: null, schedules: [] };
+  }
+
+  const detail = getCounselorDetail(counselorId);
+  const db = getDatabase();
+  const schedules = db
+    .prepare(
+      `SELECT id, counselor_id, start_time, end_time, capacity, available
+       FROM counselor_schedules
+       WHERE counselor_id = ?
+       ORDER BY start_time ASC`
+    )
+    .all(counselorId) as ScheduleRow[];
+
+  return {
+    ...detail,
+    schedules: schedules.map(mapScheduleForCounselorWorkspace)
+  };
+}
+
+export function getCounselorIdByUserId(userId: string) {
+  const db = getDatabase();
+  const row = db
+    .prepare(`SELECT id FROM counselors WHERE user_id = ?`)
+    .get(userId) as { id: string } | undefined;
+
+  return row?.id ?? null;
+}
+
+export function updateCounselorProfile(
+  counselorId: string,
+  payload: { intro: string; specialty: string[] }
+) {
+  const db = getDatabase();
+
+  db.prepare(
+    `UPDATE counselors
+     SET intro = ?,
+         specialty_json = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`
+  ).run(payload.intro.trim(), JSON.stringify(payload.specialty), counselorId);
+
+  return getCounselorDetail(counselorId).counselor;
+}
+
+export function insertCounselorSchedule(
+  slot: CounselorScheduleSlot
+) {
+  const db = getDatabase();
+  const timestamp = new Date().toISOString();
+
+  db.prepare(
+    `INSERT INTO counselor_schedules (
+      id, counselor_id, start_time, end_time, capacity, available, created_at, updated_at
+    ) VALUES (
+      @id, @counselorId, @startTime, @endTime, @capacity, @available, @createdAt, @updatedAt
+    )`
+  ).run({
+    id: slot.id,
+    counselorId: slot.counselorId,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    capacity: slot.capacity,
+    available: slot.available ? 1 : 0,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  });
+
+  return findScheduleSlotById(slot.id);
+}
+
+export function updateCounselorSchedule(
+  slotId: string,
+  counselorId: string,
+  payload: Partial<Pick<CounselorScheduleSlot, "startTime" | "endTime" | "capacity" | "available">>
+) {
+  const current = findScheduleSlotById(slotId);
+
+  if (!current || current.counselorId !== counselorId) {
+    return null;
+  }
+
+  const nextSlot = {
+    startTime: payload.startTime ?? current.startTime,
+    endTime: payload.endTime ?? current.endTime,
+    capacity: payload.capacity ?? current.capacity,
+    available: payload.available ?? current.available
+  };
+  const db = getDatabase();
+
+  db.prepare(
+    `UPDATE counselor_schedules
+     SET start_time = ?,
+         end_time = ?,
+         capacity = ?,
+         available = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ? AND counselor_id = ?`
+  ).run(
+    nextSlot.startTime,
+    nextSlot.endTime,
+    nextSlot.capacity,
+    nextSlot.available ? 1 : 0,
+    slotId,
+    counselorId
+  );
+
+  return findScheduleSlotById(slotId);
+}
+
+export function refreshCounselorNextAvailableSlot(counselorId: string) {
+  const nextAvailableSlot = getNextAvailableSlot(counselorId);
+  const db = getDatabase();
+
+  db.prepare(
+    `UPDATE counselors
+     SET next_available_slot = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`
+  ).run(nextAvailableSlot, counselorId);
+
+  return nextAvailableSlot;
 }
 
 export function findScheduleSlotById(id: string) {

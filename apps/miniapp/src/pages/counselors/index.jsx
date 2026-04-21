@@ -1,5 +1,5 @@
 import { View, Text, Input } from "@tarojs/components";
-import Taro, { useDidShow, useRouter } from "@tarojs/taro";
+import Taro, { useDidShow } from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import AppButton from "../../components/app-button";
 import AppCard from "../../components/app-card";
@@ -7,44 +7,64 @@ import CounselorCard from "../../components/counselor-card";
 import EmptyState from "../../components/empty-state";
 import PageHeader from "../../components/page-header";
 import { getCounselors, getStudentBootstrap } from "../../lib/api";
-import { formatIssueType } from "../../lib/display";
+import { isTeacherSession } from "../../lib/auth-session";
+import { formatCounselorDisplayName, formatIssueType } from "../../lib/display";
 import { counselorsFixture, studentBootstrapFixture } from "../../lib/fixtures";
-import { savePendingIntent } from "../../lib/navigation-intent";
+import { clearPendingIntent } from "../../lib/navigation-intent";
 import { consumeRegistrationFeedback } from "../../lib/registration-feedback";
 import { getRegistrationSummary } from "../../lib/student-setup";
-import { consumePreferredIssueType } from "../../lib/tabbar";
+import { consumePreferredIssueType, openTeacherAppointmentsTab, refreshRoleTabBar } from "../../lib/tabbar";
 
 export default function CounselorsPage() {
-  const router = useRouter();
   const [counselors, setCounselors] = useState(counselorsFixture);
   const [bootstrap, setBootstrap] = useState(studentBootstrapFixture);
   const [keyword, setKeyword] = useState("");
-  const [preferredIssueType, setPreferredIssueType] = useState(router.params.issueType ?? "");
+  const [preferredIssueType, setPreferredIssueType] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  useEffect(() => {
+  const loadCounselorPage = () => {
+    if (isTeacherSession()) {
+      setLoading(false);
+      openTeacherAppointmentsTab();
+      return;
+    }
+
     setLoading(true);
     setLoadError("");
-    getCounselors()
-      .then(setCounselors)
-      .catch(() => {
-        setLoadError("咨询师列表暂时没有完全刷新，已展示本地可用信息。");
+
+    Promise.allSettled([getCounselors(), getStudentBootstrap()])
+      .then(([counselorsResult, bootstrapResult]) => {
+        if (counselorsResult.status === "fulfilled") {
+          setCounselors(counselorsResult.value);
+        } else {
+          setLoadError("咨询师列表暂时没有完全刷新，已展示本地可用信息。");
+        }
+
+        if (bootstrapResult.status === "fulfilled") {
+          setBootstrap(bootstrapResult.value);
+        }
       })
       .finally(() => {
         setLoading(false);
       });
+  };
 
-    getStudentBootstrap()
-      .then(setBootstrap)
-      .catch(() => {
-        return;
-      });
+  useEffect(() => {
+    loadCounselorPage();
   }, []);
 
   useDidShow(() => {
+    refreshRoleTabBar();
+
+    if (isTeacherSession()) {
+      openTeacherAppointmentsTab();
+      return;
+    }
+
     const storedIssueType = consumePreferredIssueType();
-    setPreferredIssueType(storedIssueType || router.params.issueType || "");
+    setPreferredIssueType(storedIssueType);
+    loadCounselorPage();
 
     const feedback = consumeRegistrationFeedback();
     if (feedback?.message) {
@@ -57,7 +77,7 @@ export default function CounselorsPage() {
     const targetUrl = `/pages/appointment/index?counselorId=${counselorId}${issueParam}`;
 
     if (getRegistrationSummary(bootstrap).blocking) {
-      savePendingIntent(targetUrl);
+      clearPendingIntent();
       Taro.navigateTo({ url: "/pages/binding/index" });
       return;
     }
@@ -67,6 +87,13 @@ export default function CounselorsPage() {
 
   const filteredCounselors = counselors.filter((counselor) => {
     const query = keyword.trim().toLowerCase();
+    const matchesIssueType = preferredIssueType
+      ? counselor.specialty.includes(preferredIssueType)
+      : true;
+
+    if (!matchesIssueType) {
+      return false;
+    }
 
     if (!query) {
       return true;
@@ -74,22 +101,42 @@ export default function CounselorsPage() {
 
     return (
       counselor.displayName.toLowerCase().includes(query) ||
-      counselor.specialty.some((item) => item.toLowerCase().includes(query))
+      formatCounselorDisplayName(counselor.displayName).toLowerCase().includes(query) ||
+      counselor.specialty.some((item) => item.toLowerCase().includes(query)) ||
+      counselor.specialty.some((item) => formatIssueType(item).toLowerCase().includes(query))
     );
   });
   const registrationSummary = getRegistrationSummary(bootstrap);
+
+  if (isTeacherSession()) {
+    return (
+      <View className="page-shell">
+        <PageHeader
+          kicker="预约管理"
+          title="正在进入预约管理"
+          subtitle="教师身份不会展示学生端咨询师列表。"
+        />
+        <Text className="inline-note">正在打开教师端预约管理...</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="page-shell">
       <PageHeader
         kicker="咨询师"
         title="咨询老师"
-        subtitle="按当前困扰和可预约时间，选择合适的咨询老师。"
       />
 
       <AppCard className="search-panel-card">
         <View className="search-panel-head">
-          {preferredIssueType ? <Text className="inline-note">推荐主题：{formatIssueType(preferredIssueType)}</Text> : <Text className="inline-note">支持按姓名或擅长方向筛选。</Text>}
+          {preferredIssueType ? (
+            <AppButton block={false} variant="ghost" onClick={() => setPreferredIssueType("")}>
+              {formatIssueType(preferredIssueType)} · 清除
+            </AppButton>
+          ) : (
+            <Text className="inline-note">按姓名或擅长方向筛选</Text>
+          )}
           <Text className="count-badge">{loading ? "同步中" : `${filteredCounselors.length} 位咨询师`}</Text>
         </View>
         <View className="search-box">
@@ -105,12 +152,11 @@ export default function CounselorsPage() {
       {registrationSummary.blocking ? (
         <AppCard>
           <Text className="section-title">预约前请先完成注册登录</Text>
-          <Text className="section-copy">你可以先浏览老师信息；真正开始预约前，先补齐姓名、学院和学号会更顺畅。</Text>
           <AppButton
             className="bootstrap-guide-button"
             variant="soft"
             onClick={() => {
-              savePendingIntent("/pages/counselors/index");
+              clearPendingIntent();
               Taro.navigateTo({ url: "/pages/binding/index" });
             }}
           >
@@ -134,7 +180,7 @@ export default function CounselorsPage() {
           />
         ))}
         {!loading && filteredCounselors.length === 0 ? (
-          <EmptyState title="没有找到合适结果" description="换个关键词，或者直接浏览当前老师列表。" />
+          <EmptyState title="没有找到合适结果" />
         ) : null}
       </View>
     </View>

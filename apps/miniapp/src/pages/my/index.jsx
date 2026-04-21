@@ -10,7 +10,9 @@ import PageHeader from "../../components/page-header";
 import SectionHeader from "../../components/section-header";
 import { cancelAppointment, getCounselors, getMyAppointments } from "../../lib/api";
 import { consumeAppointmentFocus } from "../../lib/appointment-focus";
+import { isTeacherSession } from "../../lib/auth-session";
 import { appointmentsFixture, counselorsFixture } from "../../lib/fixtures";
+import { openTeacherAppointmentsTab, refreshRoleTabBar } from "../../lib/tabbar";
 
 const statusSections = [
   { key: "all", title: "全部" },
@@ -28,8 +30,15 @@ export default function MyPage() {
   const [loadError, setLoadError] = useState("");
   const [cancellingId, setCancellingId] = useState("");
   const [detailAppointmentId, setDetailAppointmentId] = useState("");
+  const isTeacher = isTeacherSession();
 
   const loadAppointments = () => {
+    if (isTeacherSession()) {
+      setLoading(false);
+      setLoadError("");
+      return;
+    }
+
     setLoading(true);
     setLoadError("");
 
@@ -57,6 +66,13 @@ export default function MyPage() {
   }, []);
 
   useDidShow(() => {
+    refreshRoleTabBar();
+
+    if (isTeacherSession()) {
+      openTeacherAppointmentsTab();
+      return;
+    }
+
     const focusIntent = consumeAppointmentFocus();
 
     if (focusIntent?.status) {
@@ -136,12 +152,23 @@ export default function MyPage() {
   const detailAppointment =
     appointments.find((appointment) => appointment.id === detailAppointmentId) ?? null;
 
+  if (isTeacher) {
+    return (
+      <View className="page-shell">
+        <PageHeader
+          kicker="预约管理"
+          title="正在进入预约管理"
+        />
+        <Text className="inline-note">教师身份会直接使用预约管理。</Text>
+      </View>
+    );
+  }
+
   return (
     <View className="page-shell">
       <PageHeader
         kicker="我的预约"
         title="我的预约"
-        subtitle="状态变化和详情更新都会同步到这里。"
       />
 
       <AppCard tone="accent">
@@ -185,7 +212,6 @@ export default function MyPage() {
         ) : (
           <EmptyState
             title={appointments.length === 0 ? "当前还没有预约记录" : "这个状态下还没有预约"}
-            description={appointments.length === 0 ? "准备好时，可以去预约一位咨询老师。" : "换个状态看看。"}
           />
         )}
       </View>

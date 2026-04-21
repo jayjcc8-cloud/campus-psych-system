@@ -9,8 +9,7 @@ import SectionHeader from "../../../components/section-header";
 import { getStudentBootstrap, updateStudentProfile } from "../../../lib/api";
 import { studentBootstrapFixture } from "../../../lib/fixtures";
 import {
-  consumePendingIntent,
-  peekPendingIntent
+  clearPendingIntent
 } from "../../../lib/navigation-intent";
 import { saveRegistrationFeedback } from "../../../lib/registration-feedback";
 import { getPendingSetupItems } from "../../../lib/student-setup";
@@ -23,7 +22,6 @@ export default function BindingProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [pendingIntent, setPendingIntent] = useState(peekPendingIntent());
 
   const loadBootstrap = () => {
     setLoading(true);
@@ -45,6 +43,7 @@ export default function BindingProfilePage() {
   };
 
   useEffect(() => {
+    clearPendingIntent();
     loadBootstrap();
   }, []);
 
@@ -92,16 +91,10 @@ export default function BindingProfilePage() {
 
       Taro.showToast({ title: "注册完成", icon: "success" });
 
-      const nextIntent = consumePendingIntent();
+      clearPendingIntent();
       saveRegistrationFeedback({
-        message: nextIntent ? "注册完成，已继续当前流程。" : "注册完成，现在可以正常使用功能了。"
+        message: "注册完成，已回到首页。"
       });
-
-      if (nextIntent) {
-        setPendingIntent(nextIntent);
-      } else {
-        setPendingIntent("");
-      }
 
       Taro.redirectTo({ url: "/pages/binding/notices/index" });
     } catch (error) {
@@ -118,8 +111,7 @@ export default function BindingProfilePage() {
     <View className="page-shell">
       <PageHeader
         kicker="注册信息"
-        title="再补齐资料，就可以开始使用"
-        subtitle="第二步只需要填写姓名、学院和学号，完成后就能继续原来的操作。"
+        title="补齐资料"
       />
 
       {loading ? <Text className="inline-note">正在同步你的注册信息...</Text> : null}
@@ -129,16 +121,11 @@ export default function BindingProfilePage() {
         <AppCard tone="accent" className="registration-hero-card">
           <View className="registration-hero-head">
             <View className="registration-hero-copy">
-              <Text className="section-title">第 2 步：填写注册资料</Text>
-              <Text className="section-copy">
-                这些信息只用于校内身份校验，不会在学生端页面额外公开展示。
-              </Text>
+              <Text className="section-title">注册资料</Text>
             </View>
             <Text className="count-badge">第 2 步</Text>
           </View>
-          {pendingIntent ? (
-            <Text className="section-copy">完成后会自动带你回到刚才想使用的功能页面。</Text>
-          ) : null}
+          <Text className="section-copy">完成后回到首页，可从首页继续预约。</Text>
         </AppCard>
 
         <AppCard className="registration-form-card">
@@ -175,7 +162,6 @@ export default function BindingProfilePage() {
                 value={schoolId}
                 onInput={(event) => setSchoolId(event.detail.value)}
               />
-              <Text className="form-helper-text">填写完成后，预约和个人中心就能直接正常使用。</Text>
             </View>
 
             <AppButton
@@ -184,15 +170,15 @@ export default function BindingProfilePage() {
               disabled={!displayName.trim() || !college.trim() || !schoolId.trim()}
               onClick={handleSubmit}
             >
-              {saving ? "提交中..." : pendingIntent ? "完成注册并继续" : "完成注册"}
+              {saving ? "提交中..." : "完成注册"}
             </AppButton>
           </View>
         </AppCard>
 
         {pendingSetupItems.length > 0 ? (
-          <EmptyState title="下一步会集中查看服务说明" description="资料提交后，会继续带你看隐私说明、用户协议和知情提示。" />
+          <EmptyState title="下一步：服务说明" />
         ) : (
-          <EmptyState title="资料填完就可以开始使用" description="完成注册后，首页会恢复成正常预约入口。" />
+          <EmptyState title="资料已完成" />
         )}
       </View>
     </View>

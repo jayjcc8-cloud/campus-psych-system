@@ -15,7 +15,6 @@ export default function CounselorCard({ counselor, onBook, actionLabel = "预约
       <View className="counselor-card-header">
         <View className="avatar-badge">{formatCounselorDisplayName(counselor.displayName).slice(0, 1)}</View>
         <View className="counselor-card-body">
-          <Text className="card-kicker">校园支持</Text>
           <View className="counselor-card-topline">
             <Text className="counselor-name">{formatCounselorDisplayName(counselor.displayName)}</Text>
             <Text className={counselor.nextAvailableSlot ? "availability-pill is-open" : "availability-pill"}>

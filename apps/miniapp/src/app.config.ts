@@ -11,7 +11,12 @@ export default defineAppConfig({
     "pages/binding/profile/index",
     "pages/binding/notices/index",
     "pages/appointment/index",
-    "pages/emergency/index"
+    "pages/emergency/index",
+    "pages/teacher/appointments/index",
+    "pages/teacher/schedules/index",
+    "pages/teacher/profile/index",
+    "pages/teacher/records/index",
+    "pages/teacher/risks/index"
   ],
   window: {
     navigationBarTitleText: "校园心理支持",
@@ -20,6 +25,7 @@ export default defineAppConfig({
     backgroundTextStyle: "light"
   },
   tabBar: {
+    custom: true,
     color: "#86A9A8",
     selectedColor: "#2E8F8C",
     backgroundColor: "#FFFFFF",
@@ -33,7 +39,7 @@ export default defineAppConfig({
       },
       {
         pagePath: "pages/counselors/index",
-        text: "咨询师",
+        text: "预约",
         iconPath: "assets/tabbar/counselors.png",
         selectedIconPath: "assets/tabbar/counselors-active.png"
       },
@@ -48,6 +54,12 @@ export default defineAppConfig({
         text: "我的",
         iconPath: "assets/tabbar/profile.png",
         selectedIconPath: "assets/tabbar/profile-active.png"
+      },
+      {
+        pagePath: "pages/teacher/appointments/index",
+        text: "预约管理",
+        iconPath: "assets/tabbar/appointments.png",
+        selectedIconPath: "assets/tabbar/appointments-active.png"
       }
     ]
   }

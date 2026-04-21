@@ -16,8 +16,13 @@ export function getAuthSession() {
 
 export function saveAuthSession(session) {
   Taro.removeStorageSync(loggedOutKey);
-  Taro.setStorageSync(authSessionKey, session);
-  return session;
+  const normalizedSession = {
+    ...session,
+    role: session.role ?? "student"
+  };
+
+  Taro.setStorageSync(authSessionKey, normalizedSession);
+  return normalizedSession;
 }
 
 export function clearAuthSession() {
@@ -34,9 +39,43 @@ export function clearLoggedOutState() {
 }
 
 export function getCurrentStudentId() {
-  return getAuthSession()?.profile?.id ?? studentProfileFixture.id;
+  const session = getAuthSession();
+
+  if (session && (!session.role || session.role === "student")) {
+    return session.profile?.id ?? studentProfileFixture.id;
+  }
+
+  return studentProfileFixture.id;
 }
 
 export function getCurrentStudentProfile() {
-  return getAuthSession()?.profile ?? studentProfileFixture;
+  const session = getAuthSession();
+
+  if (session && (!session.role || session.role === "student")) {
+    return session.profile ?? studentProfileFixture;
+  }
+
+  return studentProfileFixture;
+}
+
+export function getAuthRole() {
+  const session = getAuthSession();
+
+  if (session?.role === "teacher" || session?.role === "counselor") {
+    return "teacher";
+  }
+
+  if (session && (!session.role || session.role === "student")) {
+    return "student";
+  }
+
+  return "";
+}
+
+export function isStudentSession() {
+  return getAuthRole() === "student";
+}
+
+export function isTeacherSession() {
+  return getAuthRole() === "teacher";
 }

@@ -25,6 +25,15 @@ export default defineConfig({
   compiler: {
     type: "webpack5"
   },
+  copy: {
+    patterns: [
+      {
+        from: "src/custom-tab-bar",
+        to: "dist/custom-tab-bar"
+      }
+    ],
+    options: {}
+  },
   mini: {},
   h5: {}
 });

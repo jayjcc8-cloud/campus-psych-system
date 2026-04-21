@@ -15,6 +15,15 @@ interface AppointmentRow {
   updated_at: string;
 }
 
+interface AppointmentWithDetailRow extends AppointmentRow {
+  student_display_name: string | null;
+  student_masked_display_name: string | null;
+  student_school_id: string | null;
+  student_college: string | null;
+  schedule_start_time: string | null;
+  schedule_end_time: string | null;
+}
+
 function mapAppointment(row: AppointmentRow): Appointment {
   return {
     id: row.id,
@@ -28,6 +37,18 @@ function mapAppointment(row: AppointmentRow): Appointment {
     cancelReason: row.cancel_reason ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+function mapAppointmentWithDetail(row: AppointmentWithDetailRow) {
+  return {
+    ...mapAppointment(row),
+    studentDisplayName: row.student_display_name ?? undefined,
+    studentMaskedDisplayName: row.student_masked_display_name ?? undefined,
+    studentSchoolId: row.student_school_id ?? undefined,
+    studentCollege: row.student_college ?? undefined,
+    scheduleStartTime: row.schedule_start_time ?? undefined,
+    scheduleEndTime: row.schedule_end_time ?? undefined
   };
 }
 
@@ -48,14 +69,78 @@ export function listAppointmentsByStudent(studentId: string) {
   const db = getDatabase();
   const rows = db
     .prepare(
-      `SELECT id, student_id, counselor_id, schedule_slot_id, issue_entry_type, consult_mode, status, remark, cancel_reason, created_at, updated_at
+      `SELECT appointments.id,
+              appointments.student_id,
+              appointments.counselor_id,
+              appointments.schedule_slot_id,
+              appointments.issue_entry_type,
+              appointments.consult_mode,
+              appointments.status,
+              appointments.remark,
+              appointments.cancel_reason,
+              appointments.created_at,
+              appointments.updated_at,
+              users.display_name AS student_display_name,
+              users.masked_display_name AS student_masked_display_name,
+              users.school_id AS student_school_id,
+              users.college AS student_college,
+              counselor_schedules.start_time AS schedule_start_time,
+              counselor_schedules.end_time AS schedule_end_time
        FROM appointments
-       WHERE student_id = ?
-       ORDER BY created_at DESC`
+       LEFT JOIN users ON users.id = appointments.student_id
+       LEFT JOIN counselor_schedules ON counselor_schedules.id = appointments.schedule_slot_id
+       WHERE appointments.student_id = ?
+       ORDER BY
+         CASE appointments.status
+           WHEN 'pending' THEN 0
+           WHEN 'confirmed' THEN 1
+           ELSE 2
+         END,
+         counselor_schedules.start_time ASC,
+         appointments.created_at DESC`
     )
-    .all(studentId) as AppointmentRow[];
+    .all(studentId) as AppointmentWithDetailRow[];
 
-  return rows.map(mapAppointment);
+  return rows.map(mapAppointmentWithDetail);
+}
+
+export function listAppointmentsByCounselor(counselorId: string) {
+  const db = getDatabase();
+  const rows = db
+    .prepare(
+      `SELECT appointments.id,
+              appointments.student_id,
+              appointments.counselor_id,
+              appointments.schedule_slot_id,
+              appointments.issue_entry_type,
+              appointments.consult_mode,
+              appointments.status,
+              appointments.remark,
+              appointments.cancel_reason,
+              appointments.created_at,
+              appointments.updated_at,
+              users.display_name AS student_display_name,
+              users.masked_display_name AS student_masked_display_name,
+              users.school_id AS student_school_id,
+              users.college AS student_college,
+              counselor_schedules.start_time AS schedule_start_time,
+              counselor_schedules.end_time AS schedule_end_time
+       FROM appointments
+       LEFT JOIN users ON users.id = appointments.student_id
+       LEFT JOIN counselor_schedules ON counselor_schedules.id = appointments.schedule_slot_id
+       WHERE appointments.counselor_id = ?
+       ORDER BY
+         CASE appointments.status
+           WHEN 'pending' THEN 0
+           WHEN 'confirmed' THEN 1
+           ELSE 2
+         END,
+         counselor_schedules.start_time ASC,
+         appointments.created_at DESC`
+    )
+    .all(counselorId) as AppointmentWithDetailRow[];
+
+  return rows.map(mapAppointmentWithDetail);
 }
 
 export function findAppointmentById(id: string) {
@@ -97,6 +182,10 @@ export function hasActiveAppointmentInSlot(scheduleSlotId: string) {
     .get(scheduleSlotId) as { count: number };
 
   return row.count > 0;
+}
+
+export function hasActiveAppointmentForSchedule(scheduleSlotId: string) {
+  return hasActiveAppointmentInSlot(scheduleSlotId);
 }
 
 export function insertAppointment(appointment: Appointment) {

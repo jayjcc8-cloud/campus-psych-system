@@ -53,6 +53,8 @@ export default function AppointmentDetailSheet({ appointment, counselors = [], o
             <View className="detail-sheet-grid">
               <DetailRow label="预约编号" value={appointment.id} />
               <DetailRow label="当前状态" value={formatAppointmentStatus(appointment.status)} />
+              <DetailRow label="开始时间" value={formatDateTime(appointment.scheduleStartTime)} />
+              <DetailRow label="结束时间" value={formatDateTime(appointment.scheduleEndTime)} />
               <DetailRow label="支持方式" value={formatConsultMode(appointment.consultMode)} />
               <DetailRow label="提交时间" value={formatDateTime(appointment.createdAt)} />
               <DetailRow label="最近更新" value={formatDateTime(appointment.updatedAt)} />

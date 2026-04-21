@@ -19,18 +19,28 @@ export default function AppointmentCard({
   onView,
   onCancel
 }) {
+  const primaryTime = appointment.scheduleStartTime
+    ? formatDateTime(appointment.scheduleStartTime)
+    : formatDateTime(appointment.createdAt);
+  const secondaryTime = appointment.scheduleStartTime ? "预约时间" : "提交时间";
+
   return (
     <AppCard className={`appointment-card ${className}`.trim()}>
       <View className="appointment-card-head">
         <View className="appointment-card-copy">
-          <Text className="card-kicker">预约记录</Text>
           <Text className="appointment-card-title">{formatCounselorName(appointment.counselorId, counselors)}</Text>
-          <Text className="appointment-card-subtitle">提交于 {formatDateTime(appointment.createdAt)}</Text>
+          <Text className="appointment-card-subtitle">{secondaryTime} {primaryTime}</Text>
         </View>
         <StatusTag status={appointment.status} />
       </View>
 
       <View className="appointment-detail-grid">
+        <View className="appointment-detail-item">
+          <Text className="appointment-detail-label">预约时段</Text>
+          <Text className="appointment-detail-value">
+            {appointment.scheduleStartTime ? formatDateTime(appointment.scheduleStartTime) : "待同步"}
+          </Text>
+        </View>
         <View className="appointment-detail-item">
           <Text className="appointment-detail-label">问题类型</Text>
           <Text className="appointment-detail-value">{formatIssueType(appointment.issueEntryType)}</Text>

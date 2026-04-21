@@ -1,0 +1,15 @@
+<view class="custom-tabbar custom-tabbar-{{role}}">
+  <view
+    wx:for="{{tabs}}"
+    wx:key="pagePath"
+    class="custom-tabbar-item {{activePath === item.pagePath ? 'is-active' : ''}}"
+    data-path="{{item.pagePath}}"
+    bindtap="switchTab"
+  >
+    <image
+      class="custom-tabbar-icon"
+      src="{{activePath === item.pagePath ? item.selectedIconPath : item.iconPath}}"
+    />
+    <text class="custom-tabbar-label">{{item.text}}</text>
+  </view>
+</view>

@@ -5,8 +5,7 @@ import AppButton from "../../../components/app-button";
 import AppCard from "../../../components/app-card";
 import PageHeader from "../../../components/page-header";
 import {
-  consumePendingIntent,
-  navigateByIntent
+  consumePendingIntent
 } from "../../../lib/navigation-intent";
 import { saveRegistrationFeedback } from "../../../lib/registration-feedback";
 import { markStudentSetupAccepted } from "../../../lib/student-setup";
@@ -50,17 +49,12 @@ export default function BindingNoticesPage() {
   const isLastStep = activeIndex === noticeSteps.length - 1;
 
   const completeRegistration = () => {
-    const nextIntent = consumePendingIntent();
+    consumePendingIntent();
     saveRegistrationFeedback({
-      message: nextIntent ? "注册完成，已继续当前流程。" : "注册完成，现在可以正常使用功能了。"
+      message: "注册完成，已回到首页。"
     });
 
-    if (nextIntent) {
-      navigateByIntent(nextIntent, "/pages/profile/index");
-      return;
-    }
-
-    navigateByIntent("", "/pages/profile/index");
+    Taro.switchTab({ url: "/pages/home/index" });
   };
 
   const handleNext = () => {
@@ -79,8 +73,7 @@ export default function BindingNoticesPage() {
     <View className="page-shell">
       <PageHeader
         kicker="服务说明"
-        title="最后看完三项说明"
-        subtitle="这些说明只在注册时递进查看，之后会整合保留在“我的”页面。"
+        title="服务说明"
       />
 
       <View className="section-stack">

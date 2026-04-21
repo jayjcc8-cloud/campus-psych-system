@@ -25,7 +25,7 @@ import {
   studentBootstrapFixture
 } from "../../lib/fixtures";
 import { saveAppointmentFocus } from "../../lib/appointment-focus";
-import { savePendingIntent } from "../../lib/navigation-intent";
+import { clearPendingIntent } from "../../lib/navigation-intent";
 import { consumeRegistrationFeedback } from "../../lib/registration-feedback";
 import {
   getRegistrationSummary,
@@ -138,6 +138,12 @@ export default function AppointmentPage() {
       setIssueType(queryIssueType);
     }
 
+    getStudentBootstrap()
+      .then(setBootstrap)
+      .catch(() => {
+        return;
+      });
+
     const feedback = consumeRegistrationFeedback();
     if (feedback?.message) {
       Taro.showToast({ title: feedback.message, icon: "success" });
@@ -204,7 +210,7 @@ export default function AppointmentPage() {
     });
 
     if (modalResult.confirm) {
-      savePendingIntent(`/pages/appointment/index?counselorId=${selectedCounselorId}&issueType=${issueType}`);
+      clearPendingIntent();
       Taro.navigateTo({ url: getSetupRoute("binding") });
     }
 
@@ -282,7 +288,6 @@ export default function AppointmentPage() {
       <PageHeader
         kicker="预约"
         title="预约咨询"
-        subtitle="填写完成后会弹窗确认，再正式提交预约。"
       />
 
       <AppCard tone="accent">
@@ -308,7 +313,6 @@ export default function AppointmentPage() {
             title="提交前请先完成注册登录"
             extra={<Text className="count-badge">必做</Text>}
           />
-          <Text className="section-copy">完成姓名、学院和学号登记后，就可以正常提交预约。</Text>
           <AppButton className="home-primary-action" onClick={() => Taro.navigateTo({ url: getSetupRoute("binding") })}>
             去注册登录
           </AppButton>
@@ -319,14 +323,6 @@ export default function AppointmentPage() {
         <SectionHeader title="填写预约信息" />
         {notice ? <Text className="success-banner">{notice}</Text> : null}
         {error ? <Text className="error-banner">{error}</Text> : null}
-        <View className="booking-helper-panel">
-          <Text className="inline-note">
-            {selectedSchedule
-              ? `当前已选 ${formatDateTime(selectedSchedule.startTime)}，提交前会再次确认。`
-              : "先选择一个可预约时段，再提交预约。"}
-          </Text>
-        </View>
-
         <View className="form-stack">
           <Text className="field-label">日期</Text>
           <View className="segmented-grid">
@@ -372,7 +368,7 @@ export default function AppointmentPage() {
                 </AppButton>
               ))
             ) : (
-              <EmptyState title="当前没有可预约时段" description="换个日期试试。" />
+              <EmptyState title="暂无可预约时段" />
             )}
           </View>
 
@@ -384,7 +380,7 @@ export default function AppointmentPage() {
             value={remark}
             onInput={(event) => setRemark(event.detail.value)}
           />
-          <Text className="form-helper-text">{remark.trim() ? `${remark.trim().length}/300` : "这部分选填。"}</Text>
+          <Text className="form-helper-text">{remark.trim() ? `${remark.trim().length}/300` : "选填"}</Text>
         </View>
 
         <View className="submit-panel">

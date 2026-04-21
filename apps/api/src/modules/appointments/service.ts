@@ -11,10 +11,16 @@ import {
   hasActiveAppointmentInSlot,
   insertAppointment,
   listAppointments as listAppointmentsFromRepository,
+  listAppointmentsByCounselor,
   listAppointmentsByStudent,
   updateAppointmentStatusById
 } from "../../repositories/appointments-repository";
-import { findScheduleSlotById, getCurrentStudentProfile } from "../../repositories/reference-repository";
+import {
+  findScheduleSlotById,
+  getCounselorIdByUserId,
+  getCurrentStudentProfile,
+  refreshCounselorNextAvailableSlot
+} from "../../repositories/reference-repository";
 import { countActiveRiskFlags } from "../../repositories/risks-repository";
 import { appendAuditLog } from "../shared/audit";
 
@@ -39,6 +45,19 @@ interface CancelMyAppointmentInput {
 
 export function listAppointments() {
   return listAppointmentsFromRepository();
+}
+
+export function listAppointmentsForActor(actor: RequestActor) {
+  if (actor.operatorRole === "admin") {
+    return listAppointmentsFromRepository();
+  }
+
+  if (actor.operatorRole === "counselor") {
+    const counselorId = getCounselorIdByUserId(actor.operatorId);
+    return counselorId ? listAppointmentsByCounselor(counselorId) : [];
+  }
+
+  return [];
 }
 
 export function listMyAppointments(studentId = getCurrentStudentProfile().id) {
@@ -90,6 +109,7 @@ export function createAppointment(input: CreateAppointmentInput, actor: RequestA
     }
 
     insertAppointment(appointment);
+    refreshCounselorNextAvailableSlot(appointment.counselorId);
     appendAuditLog(actor, "appointment.create", "appointment", appointment.id, "Created pending booking.");
   });
 
@@ -111,10 +131,19 @@ export function updateAppointmentStatus({
     throw new Error(`Cannot move appointment from ${appointment.status} to ${nextStatus}.`);
   }
 
+  if (actor.operatorRole === "counselor") {
+    const actorCounselorId = getCounselorIdByUserId(actor.operatorId);
+
+    if (!actorCounselorId || actorCounselorId !== appointment.counselorId) {
+      throw new Error("Counselor cannot update another counselor's appointment.");
+    }
+  }
+
   const updatedAt = nowIso();
 
   runInTransaction(() => {
     updateAppointmentStatusById(id, nextStatus, updatedAt);
+    refreshCounselorNextAvailableSlot(appointment.counselorId);
     appendAuditLog(
       actor,
       "appointment.status.update",
@@ -157,6 +186,7 @@ export function cancelMyAppointment({
 
   runInTransaction(() => {
     cancelAppointmentById(id, updatedAt, normalizedReason);
+    refreshCounselorNextAvailableSlot(appointment.counselorId);
     appendAuditLog(
       actor,
       "appointment.cancel",

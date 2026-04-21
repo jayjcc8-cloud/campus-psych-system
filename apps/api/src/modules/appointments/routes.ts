@@ -5,7 +5,7 @@ import { requireRoles } from "../../lib/authorization";
 import {
   cancelMyAppointment,
   createAppointment,
-  listAppointments,
+  listAppointmentsForActor,
   listMyAppointments,
   summarizeAppointments,
   updateAppointmentStatus
@@ -43,7 +43,10 @@ const cancelAppointmentSchema = z.object({
 export async function registerAppointmentRoutes(app: FastifyInstance) {
   app.get("/summary", { preHandler: requireRoles("admin") }, async () => summarizeAppointments());
 
-  app.get("/", { preHandler: requireRoles("admin") }, async () => listAppointments());
+  app.get("/", { preHandler: requireRoles("counselor", "admin") }, async (request) => {
+    const actor = getActor(request);
+    return listAppointmentsForActor(actor);
+  });
 
   app.get("/my", { preHandler: requireRoles("student") }, async (request) => {
     const actor = getActor(request);

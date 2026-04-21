@@ -1,6 +1,7 @@
 import Taro from "@tarojs/taro";
-import { getAuthSession, getCurrentStudentId, isLoggedOut, saveAuthSession } from "./auth-session";
+import { getAuthSession, getCurrentStudentId, isLoggedOut, isStudentSession } from "./auth-session";
 import { studentBootstrapFixture } from "./fixtures";
+import { saveStudentRoleSession } from "./role-mode";
 
 const API_BASE_URL = "http://127.0.0.1:4000";
 
@@ -46,7 +47,7 @@ export async function loginStudent() {
     throw new MiniappApiError(payload?.message ?? "Student login failed.");
   }
 
-  return saveAuthSession(response.data);
+  return saveStudentRoleSession(response.data);
 }
 
 export async function phoneOneClickLogin(code) {
@@ -64,7 +65,7 @@ export async function phoneOneClickLogin(code) {
     throw new MiniappApiError(payload?.message ?? "Phone one-click login failed.");
   }
 
-  return saveAuthSession(response.data);
+  return saveStudentRoleSession(response.data);
 }
 
 export function getCounselors() {
@@ -76,7 +77,7 @@ export function getCounselorDetail(id) {
 }
 
 export function getMyAppointments() {
-  if (!getAuthSession() || isLoggedOut()) {
+  if (!getAuthSession() || isLoggedOut() || !isStudentSession()) {
     return Promise.resolve([]);
   }
 
@@ -88,7 +89,7 @@ export function getPublicConfig() {
 }
 
 export function createAppointment(payload) {
-  if (!getAuthSession() || isLoggedOut()) {
+  if (!getAuthSession() || isLoggedOut() || !isStudentSession()) {
     return Promise.reject(new MiniappApiError("请先完成注册登录。"));
   }
 
@@ -99,7 +100,7 @@ export function createAppointment(payload) {
 }
 
 export function cancelAppointment(id, payload = {}) {
-  if (!getAuthSession() || isLoggedOut()) {
+  if (!getAuthSession() || isLoggedOut() || !isStudentSession()) {
     return Promise.reject(new MiniappApiError("请先完成注册登录。"));
   }
 
@@ -110,7 +111,7 @@ export function cancelAppointment(id, payload = {}) {
 }
 
 export function getStudentBootstrap() {
-  if (!getAuthSession() || isLoggedOut()) {
+  if (!getAuthSession() || isLoggedOut() || !isStudentSession()) {
     return Promise.resolve(studentBootstrapFixture);
   }
 
@@ -122,7 +123,7 @@ export function updateStudentProfile(payload) {
     method: "PATCH",
     body: payload
   }).then((profile) => {
-    saveAuthSession({
+    saveStudentRoleSession({
       token: getAuthSession()?.token ?? "local-registration-token",
       profile
     });

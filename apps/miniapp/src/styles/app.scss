@@ -1,4 +1,5 @@
 page {
+  --safe-bottom: env(safe-area-inset-bottom);
   --space-8: 8PX;
   --space-12: 12PX;
   --space-16: 16PX;
@@ -12,12 +13,13 @@ page {
 
   --color-primary: #5bc0be;
   --color-primary-strong: #2f8f91;
-  --color-primary-soft: #eef9f8;
-  --color-bg: #f6fafa;
+  --color-primary-soft: #edf9f7;
+  --color-bg: #f4f8f8;
   --color-surface: #ffffff;
-  --color-border: rgba(91, 139, 141, 0.12);
-  --color-text: #1f3738;
-  --color-text-soft: #607879;
+  --color-surface-soft: #f9fcfb;
+  --color-border: rgba(61, 104, 105, 0.12);
+  --color-text: #1b3334;
+  --color-text-soft: #647d7e;
   --color-success: #4caf50;
   --color-success-soft: rgba(76, 175, 80, 0.12);
   --color-warning: #ffb300;
@@ -29,8 +31,9 @@ page {
   --color-error-soft: rgba(229, 115, 115, 0.12);
 
   background:
-    radial-gradient(circle at top left, rgba(91, 192, 190, 0.09), transparent 32%),
-    radial-gradient(circle at top right, rgba(95, 135, 214, 0.08), transparent 28%),
+    radial-gradient(circle at 12% 0%, rgba(91, 192, 190, 0.16), transparent 30%),
+    radial-gradient(circle at 92% 10%, rgba(95, 135, 214, 0.1), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(244, 248, 248, 0) 240PX),
     var(--color-bg);
   color: var(--color-text);
   font-family: "PingFang SC", "SF Pro Text", sans-serif;
@@ -47,7 +50,7 @@ textarea {
 
 .page-shell {
   min-height: 100vh;
-  padding: var(--space-24) var(--space-16) calc(108PX + env(safe-area-inset-bottom));
+  padding: 22PX var(--space-16) calc(92PX + var(--safe-bottom));
 }
 
 .page-header,
@@ -92,10 +95,11 @@ textarea {
 
 .page-title {
   display: block;
-  font-size: 24PX;
+  font-size: 23PX;
   line-height: 1.4;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text);
+  letter-spacing: -0.2PX;
 }
 
 .page-subtitle {
@@ -136,16 +140,17 @@ textarea {
 .app-card {
   padding: var(--space-16);
   border-radius: var(--radius-card);
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.94);
   border: 1PX solid var(--color-border);
-  box-shadow: 0 12PX 30PX rgba(31, 55, 56, 0.06);
+  box-shadow: 0 14PX 34PX rgba(31, 55, 56, 0.055);
+  backdrop-filter: blur(12PX);
 }
 
 .app-card-accent {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92)),
-    var(--color-primary-soft);
-  border-color: rgba(91, 192, 190, 0.18);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(237, 249, 247, 0.92)),
+    radial-gradient(circle at 12% 8%, rgba(91, 192, 190, 0.2), transparent 34%);
+  border-color: rgba(91, 192, 190, 0.2);
 }
 
 .app-button,
@@ -174,7 +179,7 @@ textarea {
   font-size: 15PX;
   font-weight: 600;
   line-height: 44PX;
-  transition: opacity 120ms ease;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .app-button-block {
@@ -182,7 +187,7 @@ textarea {
 }
 
 .app-button-primary {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary), #48abae);
   color: #ffffff;
   box-shadow: 0 10PX 20PX rgba(47, 143, 145, 0.22);
 }
@@ -193,7 +198,7 @@ textarea {
 }
 
 .app-button-soft {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.86);
   color: var(--color-text);
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
@@ -241,10 +246,10 @@ textarea {
 .emotion-entry-content {
   display: grid;
   gap: var(--space-8);
-  min-height: 120PX;
+  min-height: 112PX;
   padding: var(--space-16);
   text-align: left;
-  border-radius: 14PX;
+  border-radius: 18PX;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
 }
@@ -334,6 +339,45 @@ textarea {
   display: grid;
   gap: var(--space-8);
   flex: 1;
+}
+
+.role-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.role-choice-card {
+  min-height: 76PX;
+  border-radius: 16PX;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.role-choice-card.is-active {
+  background: rgba(91, 192, 190, 0.16);
+  box-shadow: inset 0 0 0 1PX rgba(47, 143, 145, 0.24);
+}
+
+.role-choice-content {
+  display: grid;
+  gap: 6PX;
+  text-align: left;
+}
+
+.role-choice-title {
+  display: block;
+  font-size: 15PX;
+  line-height: 1.4;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.role-choice-desc {
+  display: block;
+  font-size: 12PX;
+  line-height: 1.4;
+  color: var(--color-text-soft);
 }
 
 .registration-step-row {
@@ -481,11 +525,12 @@ textarea {
 .search-input,
 .form-textarea {
   width: 100%;
+  min-height: 46PX;
   padding: 12PX 14PX;
-  border-radius: var(--radius-input);
-  background: #ffffff;
-  box-shadow: inset 0 0 0 1PX var(--color-border);
-  font-size: 14PX;
+  border-radius: 16PX;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 1PX rgba(61, 104, 105, 0.14);
+  font-size: 15PX;
   color: var(--color-text);
 }
 
@@ -566,6 +611,10 @@ textarea {
   inset: 0 auto 0 0;
   width: 4PX;
   background: linear-gradient(180deg, var(--color-primary), rgba(95, 135, 214, 0.65));
+}
+
+.counselor-card {
+  padding: 18PX;
 }
 
 .counselor-card-header,
@@ -807,7 +856,7 @@ textarea {
 .selector-chip.is-active,
 .slot-card.is-active,
 .status-filter-card.is-active {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary), #48abae);
   color: #ffffff;
   box-shadow: 0 10PX 20PX rgba(47, 143, 145, 0.18);
 }
@@ -834,7 +883,7 @@ textarea {
   gap: var(--space-8);
   padding: 12PX;
   border-radius: 14PX;
-  background: rgba(91, 192, 190, 0.08);
+  background: rgba(91, 192, 190, 0.075);
 }
 
 .form-helper-text,
@@ -923,7 +972,8 @@ textarea {
   gap: var(--space-8);
   padding: 18PX 16PX;
   border-radius: var(--radius-card);
-  background: rgba(31, 55, 56, 0.04);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: inset 0 0 0 1PX rgba(61, 104, 105, 0.08);
 }
 
 .service-note-list {
@@ -1000,6 +1050,159 @@ textarea {
   padding: 12PX 14PX;
   border-radius: 14PX;
   background: rgba(31, 55, 56, 0.04);
+}
+
+.teacher-action-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.teacher-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.teacher-entry-card {
+  min-height: 88PX;
+  border-radius: 18PX;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(235, 248, 247, 0.92));
+  box-shadow: 0 12PX 26PX rgba(31, 55, 56, 0.065), inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.teacher-entry-grid .teacher-entry-card:nth-child(2) {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(238, 243, 253, 0.92));
+}
+
+.teacher-entry-grid .teacher-entry-card:nth-child(3) {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 235, 0.92));
+}
+
+.teacher-entry-grid .teacher-entry-card:nth-child(4) {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(249, 239, 239, 0.9));
+}
+
+.teacher-entry-grid .teacher-entry-card:nth-child(5) {
+  grid-column: 1 / -1;
+}
+
+.teacher-entry-content,
+.teacher-preview-card {
+  display: grid;
+  gap: var(--space-8);
+  text-align: left;
+}
+
+.teacher-entry-title {
+  display: block;
+  font-size: 17PX;
+  line-height: 1.5;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.teacher-entry-desc {
+  display: block;
+  font-size: 12PX;
+  line-height: 1.5;
+  color: var(--color-text-soft);
+}
+
+.teacher-schedule-card,
+.teacher-appointment-panel,
+.teacher-record-card,
+.teacher-risk-card {
+  display: grid;
+  gap: var(--space-12);
+  padding: 14PX;
+  border-radius: 16PX;
+  background: rgba(246, 250, 250, 0.92);
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.teacher-schedule-card {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.teacher-overview-card {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.teacher-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.teacher-metric-card {
+  display: grid;
+  gap: 4PX;
+  padding: 14PX 10PX;
+  border-radius: 16PX;
+  background: rgba(246, 250, 250, 0.92);
+  text-align: center;
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.teacher-metric-value {
+  display: block;
+  font-size: 22PX;
+  line-height: 1.2;
+  font-weight: 800;
+  color: var(--color-primary-strong);
+}
+
+.teacher-metric-label {
+  display: block;
+  font-size: 12PX;
+  line-height: 1.4;
+  color: var(--color-text-soft);
+}
+
+.teacher-next-schedule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: 14PX;
+  border-radius: 18PX;
+  background: linear-gradient(135deg, rgba(91, 192, 190, 0.14), rgba(95, 135, 214, 0.1));
+}
+
+.risk-level-pill,
+.risk-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 4PX 10PX;
+  border-radius: var(--radius-pill);
+  font-size: 12PX;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.risk-level-low,
+.risk-status-processed,
+.risk-status-closed {
+  background: rgba(96, 120, 121, 0.12);
+  color: #5b7071;
+}
+
+.risk-level-medium,
+.risk-status-pending {
+  background: var(--color-warning-soft);
+  color: #9b6a00;
+}
+
+.risk-level-high,
+.risk-status-in_progress {
+  background: var(--color-error-soft);
+  color: #aa4b4b;
 }
 
 .submit-panel {

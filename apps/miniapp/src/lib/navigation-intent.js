@@ -5,7 +5,8 @@ const tabPages = new Set([
   "/pages/home/index",
   "/pages/counselors/index",
   "/pages/my/index",
-  "/pages/profile/index"
+  "/pages/profile/index",
+  "/pages/teacher/appointments/index"
 ]);
 
 export function savePendingIntent(url) {
