@@ -11,9 +11,10 @@ import type { Appointment } from "../appointments/types";
 export const currentStudent: UserProfile = {
   id: "student-001",
   role: "student",
-  displayName: "Student 001",
-  maskedDisplayName: "Student A17",
+  displayName: "林晓雨",
+  maskedDisplayName: "晓雨同学",
   schoolId: "20260001",
+  college: "计算机学院",
   visibilityLevel: "masked"
 };
 
@@ -24,7 +25,7 @@ export const counselorsFixture: Counselor[] = [
     specialty: ["academic_pressure", "relationship"],
     intro: "Focuses on transition stress and relationship-related support.",
     gender: "female",
-    nextAvailableSlot: "2026-04-19T09:00:00+08:00"
+    nextAvailableSlot: "2026-04-22T09:00:00+08:00"
   },
   {
     id: "counselor-002",
@@ -32,7 +33,7 @@ export const counselorsFixture: Counselor[] = [
     specialty: ["sleep", "emotion"],
     intro: "Supports students navigating burnout, sleep, and emotional regulation.",
     gender: "male",
-    nextAvailableSlot: "2026-04-19T14:00:00+08:00"
+    nextAvailableSlot: "2026-04-23T14:00:00+08:00"
   }
 ];
 
@@ -40,8 +41,16 @@ export const scheduleFixture: CounselorScheduleSlot[] = [
   {
     id: "slot-001",
     counselorId: "counselor-001",
-    startTime: "2026-04-19T09:00:00+08:00",
-    endTime: "2026-04-19T10:00:00+08:00",
+    startTime: "2026-04-22T09:00:00+08:00",
+    endTime: "2026-04-22T10:00:00+08:00",
+    capacity: 1,
+    available: true
+  },
+  {
+    id: "slot-002",
+    counselorId: "counselor-002",
+    startTime: "2026-04-23T14:00:00+08:00",
+    endTime: "2026-04-23T15:00:00+08:00",
     capacity: 1,
     available: true
   }
@@ -57,8 +66,8 @@ export const appointmentsFixture: Appointment[] = [
     consultMode: "offline",
     status: "pending",
     remark: "Need support around thesis stress.",
-    createdAt: "2026-04-18T09:30:00+08:00",
-    updatedAt: "2026-04-18T09:30:00+08:00"
+    createdAt: "2026-04-20T09:30:00+08:00",
+    updatedAt: "2026-04-20T09:30:00+08:00"
   }
 ];
 
@@ -72,8 +81,8 @@ export const sessionRecordsFixture: SessionRecord[] = [
     needFollowUp: true,
     summaryNote: "Student reports a sustained thesis deadline pressure.",
     privateNote: "Observe concentration and sleep pattern next session.",
-    createdAt: "2026-04-18T10:30:00+08:00",
-    updatedAt: "2026-04-18T10:30:00+08:00"
+    createdAt: "2026-04-20T10:30:00+08:00",
+    updatedAt: "2026-04-20T10:30:00+08:00"
   }
 ];
 
@@ -86,9 +95,9 @@ export const risksFixture: RiskFlag[] = [
     level: "medium",
     status: "in_progress",
     assignedTo: "counselor-001",
-    nextFollowUpAt: "2026-04-21T10:00:00+08:00",
-    createdAt: "2026-04-18T10:40:00+08:00",
-    updatedAt: "2026-04-18T10:40:00+08:00"
+    nextFollowUpAt: "2026-04-24T10:00:00+08:00",
+    createdAt: "2026-04-20T10:40:00+08:00",
+    updatedAt: "2026-04-20T10:40:00+08:00"
   }
 ];
 
@@ -126,6 +135,6 @@ export const auditLogsFixture: AuditLog[] = [
     targetType: "public_config",
     targetId: "default",
     detail: "Initial bootstrap fixture created for admin console review.",
-    createdAt: "2026-04-18T10:50:00+08:00"
+    createdAt: "2026-04-20T10:50:00+08:00"
   }
 ];

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   display_name TEXT NOT NULL,
   masked_display_name TEXT NOT NULL,
   school_id TEXT,
+  college TEXT,
   visibility_level TEXT NOT NULL CHECK (visibility_level IN ('masked', 'authorized')),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -112,4 +113,3 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
-

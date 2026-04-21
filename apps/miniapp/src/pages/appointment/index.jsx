@@ -6,14 +6,31 @@ import AppCard from "../../components/app-card";
 import EmptyState from "../../components/empty-state";
 import PageHeader from "../../components/page-header";
 import SectionHeader from "../../components/section-header";
-import { createAppointment, getCounselorDetail, getCounselors } from "../../lib/api";
 import {
+  createAppointment,
+  getCounselorDetail,
+  getCounselors,
+  getStudentBootstrap
+} from "../../lib/api";
+import {
+  formatAvailabilityHint,
   formatCounselorDisplayName,
   formatCounselorSummary,
   formatDateTime,
   formatIssueType
 } from "../../lib/display";
-import { counselorsFixture, scheduleFixture } from "../../lib/fixtures";
+import {
+  counselorsFixture,
+  scheduleFixture,
+  studentBootstrapFixture
+} from "../../lib/fixtures";
+import { saveAppointmentFocus } from "../../lib/appointment-focus";
+import { savePendingIntent } from "../../lib/navigation-intent";
+import { consumeRegistrationFeedback } from "../../lib/registration-feedback";
+import {
+  getRegistrationSummary,
+  getSetupRoute
+} from "../../lib/student-setup";
 import { switchStudentTab } from "../../lib/tabbar";
 
 const issueOptions = [
@@ -36,9 +53,10 @@ export default function AppointmentPage() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [datePreset, setDatePreset] = useState("today");
+  const [datePreset, setDatePreset] = useState("week");
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
+  const [bootstrap, setBootstrap] = useState(studentBootstrapFixture);
 
   const loadSchedulesForCounselor = async (counselorId, { staleSelectionMessage = "" } = {}) => {
     if (!counselorId) {
@@ -100,6 +118,12 @@ export default function AppointmentPage() {
       .catch(() => {
         return;
       });
+
+    getStudentBootstrap()
+      .then(setBootstrap)
+      .catch(() => {
+        return;
+      });
   }, []);
 
   useDidShow(() => {
@@ -112,6 +136,11 @@ export default function AppointmentPage() {
 
     if (queryIssueType) {
       setIssueType(queryIssueType);
+    }
+
+    const feedback = consumeRegistrationFeedback();
+    if (feedback?.message) {
+      Taro.showToast({ title: feedback.message, icon: "success" });
     }
   });
 
@@ -159,9 +188,52 @@ export default function AppointmentPage() {
     }
   }, [datePreset, selectedScheduleId, visibleSchedules]);
 
+  const selectedSchedule = visibleSchedules.find((slot) => slot.id === selectedScheduleId) ?? null;
+  const registrationSummary = getRegistrationSummary(bootstrap);
+
+  const continueBindingBeforeBooking = async () => {
+    if (!registrationSummary.blocking) {
+      return false;
+    }
+
+    const modalResult = await Taro.showModal({
+      title: "请先完成注册登录",
+      content: "提交预约前，请先完成姓名、学院和学号登记。注册完成后就能正常使用预约功能。",
+      confirmText: "去注册",
+      cancelText: "稍后再说"
+    });
+
+    if (modalResult.confirm) {
+      savePendingIntent(`/pages/appointment/index?counselorId=${selectedCounselorId}&issueType=${issueType}`);
+      Taro.navigateTo({ url: getSetupRoute("binding") });
+    }
+
+    return true;
+  };
+
   const handleSubmit = async () => {
     if (!selectedCounselorId || !selectedScheduleId) {
       setError("请先选择咨询老师和可预约时段。");
+      return;
+    }
+
+    if (registrationSummary.blocking) {
+      setError("提交前请先完成注册登录。");
+      await continueBindingBeforeBooking();
+      return;
+    }
+
+    const confirmResult = await Taro.showModal({
+      title: "确认预约",
+      content: [
+        `咨询老师：${selectedCounselor ? formatCounselorDisplayName(selectedCounselor.displayName) : "未选择"}`,
+        `问题类型：${formatIssueType(issueType)}`,
+        `开始时间：${selectedSchedule ? formatDateTime(selectedSchedule.startTime) : "未选择"}`,
+        `结束时间：${selectedSchedule ? formatDateTime(selectedSchedule.endTime) : "未选择"}`
+      ].join("\n")
+    });
+
+    if (!confirmResult.confirm) {
       return;
     }
 
@@ -178,6 +250,11 @@ export default function AppointmentPage() {
       });
 
       setNotice(`预约已提交，编号 ${appointment.id}。`);
+      saveAppointmentFocus({
+        status: "pending",
+        appointmentId: appointment.id,
+        message: "预约已提交，已为你切到待确认记录。"
+      });
       Taro.showToast({
         title: "预约成功",
         icon: "success"
@@ -204,47 +281,53 @@ export default function AppointmentPage() {
     <View className="page-shell">
       <PageHeader
         kicker="预约"
-        title="一屏完成预约"
-        subtitle="我们把选择信息、确认时间和提交反馈放在同一条路径里，尽量减少来回跳转。"
+        title="预约咨询"
+        subtitle="填写完成后会弹窗确认，再正式提交预约。"
       />
 
       <AppCard tone="accent">
-        <SectionHeader title="当前进度" description="先确认咨询老师和时间，再决定是否补充说明。" />
         <View className="progress-strip">
-          <Text className="progress-chip is-active">1 选择信息</Text>
-          <Text className="progress-chip is-active">2 确认时间</Text>
-          <Text className="progress-chip">3 提交完成</Text>
+          <Text className="progress-chip is-active">信息</Text>
+          <Text className={selectedSchedule ? "progress-chip is-active" : "progress-chip"}>时间</Text>
+          <Text className={selectedSchedule ? "progress-chip is-active" : "progress-chip"}>提交</Text>
         </View>
       </AppCard>
 
       {selectedCounselor ? (
         <AppCard className="selected-counselor-card">
-          <SectionHeader title="已选咨询老师" description="你可以随时在下面切换其他咨询老师，不会丢失当前页面。" />
+          <SectionHeader title="已选老师" />
           <Text className="selected-counselor-name">{formatCounselorDisplayName(selectedCounselor.displayName)}</Text>
           <Text className="section-copy">{formatCounselorSummary(selectedCounselor)}</Text>
+          <Text className="inline-note">{formatAvailabilityHint(selectedCounselor.nextAvailableSlot)}</Text>
+        </AppCard>
+      ) : null}
+
+      {registrationSummary.blocking ? (
+        <AppCard>
+          <SectionHeader
+            title="提交前请先完成注册登录"
+            extra={<Text className="count-badge">必做</Text>}
+          />
+          <Text className="section-copy">完成姓名、学院和学号登记后，就可以正常提交预约。</Text>
+          <AppButton className="home-primary-action" onClick={() => Taro.navigateTo({ url: getSetupRoute("binding") })}>
+            去注册登录
+          </AppButton>
         </AppCard>
       ) : null}
 
       <AppCard className="booking-card">
-        <SectionHeader title="预约信息" description="默认方式为线下面谈。补充说明是可选项，先完成预约更重要。" />
+        <SectionHeader title="填写预约信息" />
         {notice ? <Text className="success-banner">{notice}</Text> : null}
         {error ? <Text className="error-banner">{error}</Text> : null}
+        <View className="booking-helper-panel">
+          <Text className="inline-note">
+            {selectedSchedule
+              ? `当前已选 ${formatDateTime(selectedSchedule.startTime)}，提交前会再次确认。`
+              : "先选择一个可预约时段，再提交预约。"}
+          </Text>
+        </View>
 
         <View className="form-stack">
-          <Text className="field-label">咨询师</Text>
-          <View className="chip-grid">
-            {counselors.map((counselor) => (
-              <AppButton
-                key={counselor.id}
-                className={counselor.id === selectedCounselorId ? "selector-chip is-active" : "selector-chip"}
-                variant="soft"
-                onClick={() => setSelectedCounselorId(counselor.id)}
-              >
-                {formatCounselorDisplayName(counselor.displayName)}
-              </AppButton>
-            ))}
-          </View>
-
           <Text className="field-label">日期</Text>
           <View className="segmented-grid">
             <AppButton className={datePreset === "today" ? "selector-chip is-active" : "selector-chip"} variant="soft" onClick={() => setDatePreset("today")}>
@@ -289,45 +372,37 @@ export default function AppointmentPage() {
                 </AppButton>
               ))
             ) : (
-              <EmptyState title="当前筛选下暂无可预约时段" description="可以换一个日期试试，或者先切换到其他咨询老师。" />
+              <EmptyState title="当前没有可预约时段" description="换个日期试试。" />
             )}
           </View>
-
-          <AppCard className="summary-card">
-            <SectionHeader title="确认信息" description="提交前只看三项：咨询老师、问题类型和你选择的时间段。" />
-            <View className="summary-grid">
-              <View className="summary-item">
-                <Text className="summary-label">咨询师</Text>
-                <Text className="summary-value">
-                  {selectedCounselor ? formatCounselorDisplayName(selectedCounselor.displayName) : "未选择"}
-                </Text>
-              </View>
-              <View className="summary-item">
-                <Text className="summary-label">问题类型</Text>
-                <Text className="summary-value">{formatIssueType(issueType)}</Text>
-              </View>
-              <View className="summary-item">
-                <Text className="summary-label">时间段</Text>
-                <Text className="summary-value">
-                  {formatDateTime(visibleSchedules.find((slot) => slot.id === selectedScheduleId)?.startTime) ?? "未选择"}
-                </Text>
-              </View>
-            </View>
-          </AppCard>
 
           <Text className="field-label">补充说明（可选）</Text>
           <Textarea
             className="form-textarea"
             maxlength={300}
-            placeholder="如果你愿意，可以简单写下当前最想聊的情况，帮助咨询老师提前了解。"
+            placeholder="简单写下你想聊的内容"
             value={remark}
             onInput={(event) => setRemark(event.detail.value)}
           />
+          <Text className="form-helper-text">{remark.trim() ? `${remark.trim().length}/300` : "这部分选填。"}</Text>
         </View>
 
-        <AppButton disabled={submitting || !selectedScheduleId} loading={submitting} onClick={handleSubmit}>
-          {submitting ? "提交中..." : "确认预约"}
-        </AppButton>
+        <View className="submit-panel">
+          <Text className="submit-summary-text">
+            {registrationSummary.blocking
+              ? "还需先完成注册登录"
+              : selectedSchedule
+                ? `已选 ${formatDateTime(selectedSchedule.startTime)}`
+                : "请先选择一个时间段"}
+          </Text>
+          <AppButton
+            disabled={submitting || !selectedScheduleId}
+            loading={submitting}
+            onClick={handleSubmit}
+          >
+            {submitting ? "提交中..." : "提交预约"}
+          </AppButton>
+        </View>
       </AppCard>
     </View>
   );

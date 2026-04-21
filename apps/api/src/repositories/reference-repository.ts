@@ -7,7 +7,10 @@ interface UserRow {
   display_name: string;
   masked_display_name: string;
   school_id: string | null;
+  college: string | null;
   visibility_level: UserProfile["visibilityLevel"];
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface CounselorRow {
@@ -35,6 +38,7 @@ function mapUser(row: UserRow): UserProfile {
     displayName: row.display_name,
     maskedDisplayName: row.masked_display_name,
     schoolId: row.school_id ?? undefined,
+    college: row.college ?? undefined,
     visibilityLevel: row.visibility_level
   };
 }
@@ -61,21 +65,89 @@ function mapSchedule(row: ScheduleRow): CounselorScheduleSlot {
   };
 }
 
-export function getCurrentStudentProfile(studentId = "student-001") {
+function findStudentRow(studentId: string) {
   const db = getDatabase();
-  const row = db
+  return db
     .prepare(
-      `SELECT id, role, display_name, masked_display_name, school_id, visibility_level
+      `SELECT id, role, display_name, masked_display_name, school_id, college, visibility_level, created_at, updated_at
        FROM users
        WHERE id = ? AND role = 'student'`
     )
     .get(studentId) as UserRow | undefined;
+}
+
+function findDefaultStudentRow() {
+  const db = getDatabase();
+  return db
+    .prepare(
+      `SELECT id, role, display_name, masked_display_name, school_id, college, visibility_level, created_at, updated_at
+       FROM users
+       WHERE role = 'student'
+       ORDER BY created_at ASC
+       LIMIT 1`
+    )
+    .get() as UserRow | undefined;
+}
+
+function resolveStudentRow(studentId = "student-001") {
+  const directMatch = findStudentRow(studentId);
+
+  if (directMatch) {
+    return directMatch;
+  }
+
+  if (studentId === "student-bootstrap") {
+    return findStudentRow("student-001") ?? findDefaultStudentRow();
+  }
+
+  return null;
+}
+
+export function getCurrentStudentProfile(studentId = "student-001") {
+  const row = resolveStudentRow(studentId);
 
   if (!row) {
     throw new Error("Seeded student profile not found.");
   }
 
   return mapUser(row);
+}
+
+function toMaskedStudentName(displayName: string, schoolId?: string) {
+  const trimmedName = displayName.trim();
+
+  if (!trimmedName) {
+    return schoolId ? `同学 ${schoolId.slice(-4)}` : "已绑定同学";
+  }
+
+  return `${trimmedName.slice(-2)}同学`;
+}
+
+export function updateCurrentStudentProfile(
+  studentId: string,
+  payload: { schoolId: string; displayName: string; college: string }
+) {
+  const currentStudent = getCurrentStudentProfile(studentId);
+  const db = getDatabase();
+
+  db.prepare(
+    `UPDATE users
+     SET display_name = ?,
+         masked_display_name = ?,
+         school_id = ?,
+         college = ?,
+         visibility_level = 'authorized',
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ? AND role = 'student'`
+  ).run(
+    payload.displayName.trim(),
+    toMaskedStudentName(payload.displayName, payload.schoolId),
+    payload.schoolId.trim(),
+    payload.college.trim(),
+    currentStudent.id
+  );
+
+  return getCurrentStudentProfile(currentStudent.id);
 }
 
 export function listCounselors() {
@@ -137,4 +209,3 @@ export function getScheduleSlotStartTime(id: string) {
 
   return row?.start_time ?? null;
 }
-

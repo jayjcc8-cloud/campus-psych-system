@@ -4,6 +4,12 @@ export default defineAppConfig({
     "pages/counselors/index",
     "pages/my/index",
     "pages/profile/index",
+    "pages/privacy/index",
+    "pages/agreement/index",
+    "pages/consent/index",
+    "pages/binding/index",
+    "pages/binding/profile/index",
+    "pages/binding/notices/index",
     "pages/appointment/index",
     "pages/emergency/index"
   ],

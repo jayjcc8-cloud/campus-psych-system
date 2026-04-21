@@ -55,7 +55,7 @@ export function summarizeAppointments() {
 }
 
 export function createAppointment(input: CreateAppointmentInput, actor: RequestActor): Appointment {
-  const student = getCurrentStudentProfile();
+  const student = getCurrentStudentProfile(actor.operatorId);
   const timestamp = nowIso();
   const appointment: Appointment = {
     id: createId("appt"),
@@ -142,7 +142,7 @@ export function cancelMyAppointment({
     return null;
   }
 
-  const currentStudentId = getCurrentStudentProfile().id;
+  const currentStudentId = getCurrentStudentProfile(actor.operatorId).id;
 
   if (appointment.studentId !== currentStudentId) {
     throw new Error("Student cannot cancel another student's appointment.");

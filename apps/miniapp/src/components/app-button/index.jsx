@@ -11,7 +11,8 @@ export default function AppButton({
   block = true,
   disabled = false,
   loading = false,
-  onClick
+  onClick,
+  ...props
 }) {
   return (
     <Button
@@ -19,6 +20,7 @@ export default function AppButton({
       disabled={disabled || loading}
       loading={loading}
       onClick={onClick}
+      {...props}
     >
       {children}
     </Button>

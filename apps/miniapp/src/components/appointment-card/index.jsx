@@ -1,4 +1,3 @@
-import Taro from "@tarojs/taro";
 import { Text, View } from "@tarojs/components";
 import AppButton from "../app-button";
 import AppCard from "../app-card";
@@ -17,25 +16,16 @@ export default function AppointmentCard({
   showActions = false,
   canCancel = false,
   cancelling = false,
+  onView,
   onCancel
 }) {
-  const handleView = () => {
-    Taro.showModal({
-      title: "预约详情",
-      content: `咨询老师：${formatCounselorName(appointment.counselorId, counselors)}\n问题类型：${formatIssueType(
-        appointment.issueEntryType
-      )}\n提交时间：${formatDateTime(appointment.createdAt)}\n补充说明：${appointment.remark ?? "未填写"}${
-        appointment.cancelReason ? `\n取消原因：${appointment.cancelReason}` : ""
-      }`
-    });
-  };
-
   return (
     <AppCard className={`appointment-card ${className}`.trim()}>
       <View className="appointment-card-head">
         <View className="appointment-card-copy">
+          <Text className="card-kicker">预约记录</Text>
           <Text className="appointment-card-title">{formatCounselorName(appointment.counselorId, counselors)}</Text>
-          <Text className="appointment-card-subtitle">{formatDateTime(appointment.createdAt)}</Text>
+          <Text className="appointment-card-subtitle">提交于 {formatDateTime(appointment.createdAt)}</Text>
         </View>
         <StatusTag status={appointment.status} />
       </View>
@@ -50,12 +40,11 @@ export default function AppointmentCard({
           <Text className="appointment-detail-value">{formatAppointmentHint(appointment.status)}</Text>
         </View>
       </View>
-
-      <Text className="appointment-remark">补充说明：{appointment.remark ?? "未填写"}</Text>
+      {appointment.remark ? <Text className="appointment-remark">{appointment.remark}</Text> : null}
 
       {showActions ? (
         <View className="appointment-card-actions">
-          <AppButton block={false} variant="secondary" onClick={handleView}>
+          <AppButton block={false} variant="secondary" onClick={onView}>
             查看详情
           </AppButton>
           {canCancel ? (

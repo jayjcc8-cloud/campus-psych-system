@@ -1,4 +1,6 @@
 import Taro from "@tarojs/taro";
+import { getAuthSession, getCurrentStudentId, isLoggedOut, saveAuthSession } from "./auth-session";
+import { studentBootstrapFixture } from "./fixtures";
 
 const API_BASE_URL = "http://127.0.0.1:4000";
 
@@ -17,7 +19,7 @@ async function request(path, options = {}) {
     header: {
       "Content-Type": "application/json",
       "x-user-role": "student",
-      "x-user-id": "student-bootstrap"
+      "x-user-id": getCurrentStudentId()
     }
   });
 
@@ -29,6 +31,42 @@ async function request(path, options = {}) {
   return response.data;
 }
 
+export async function loginStudent() {
+  const response = await Taro.request({
+    url: `${API_BASE_URL}/auth/wechat/login`,
+    method: "POST",
+    data: {},
+    header: {
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    const payload = response.data;
+    throw new MiniappApiError(payload?.message ?? "Student login failed.");
+  }
+
+  return saveAuthSession(response.data);
+}
+
+export async function phoneOneClickLogin(code) {
+  const response = await Taro.request({
+    url: `${API_BASE_URL}/auth/wechat/phone-one-click`,
+    method: "POST",
+    data: { code },
+    header: {
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    const payload = response.data;
+    throw new MiniappApiError(payload?.message ?? "Phone one-click login failed.");
+  }
+
+  return saveAuthSession(response.data);
+}
+
 export function getCounselors() {
   return request("/counselors");
 }
@@ -38,6 +76,10 @@ export function getCounselorDetail(id) {
 }
 
 export function getMyAppointments() {
+  if (!getAuthSession() || isLoggedOut()) {
+    return Promise.resolve([]);
+  }
+
   return request("/appointments/my");
 }
 
@@ -46,6 +88,10 @@ export function getPublicConfig() {
 }
 
 export function createAppointment(payload) {
+  if (!getAuthSession() || isLoggedOut()) {
+    return Promise.reject(new MiniappApiError("请先完成注册登录。"));
+  }
+
   return request("/appointments", {
     method: "POST",
     body: payload
@@ -53,8 +99,34 @@ export function createAppointment(payload) {
 }
 
 export function cancelAppointment(id, payload = {}) {
+  if (!getAuthSession() || isLoggedOut()) {
+    return Promise.reject(new MiniappApiError("请先完成注册登录。"));
+  }
+
   return request(`/appointments/${id}/cancel`, {
     method: "PATCH",
     body: payload
+  });
+}
+
+export function getStudentBootstrap() {
+  if (!getAuthSession() || isLoggedOut()) {
+    return Promise.resolve(studentBootstrapFixture);
+  }
+
+  return request("/auth/bootstrap");
+}
+
+export function updateStudentProfile(payload) {
+  return request("/auth/profile", {
+    method: "PATCH",
+    body: payload
+  }).then((profile) => {
+    saveAuthSession({
+      token: getAuthSession()?.token ?? "local-registration-token",
+      profile
+    });
+
+    return profile;
   });
 }

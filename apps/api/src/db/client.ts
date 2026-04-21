@@ -1,11 +1,14 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 let database: Database.Database | null = null;
 
+const dbDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../data");
+
 export function getDatabaseFilePath() {
-  return process.env.DB_FILE ?? path.resolve(process.cwd(), "apps/api/data/campus-psych.sqlite");
+  return process.env.DB_FILE ?? path.join(dbDirectory, "campus-psych.sqlite");
 }
 
 export function getDatabase() {
@@ -29,4 +32,3 @@ export function runInTransaction<T>(callback: () => T): T {
 
   return transaction();
 }
-

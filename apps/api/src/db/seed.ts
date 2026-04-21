@@ -51,9 +51,9 @@ export function seedDatabase() {
 
   const insertUser = database.prepare(`
     INSERT OR IGNORE INTO users (
-      id, role, display_name, masked_display_name, school_id, visibility_level, created_at, updated_at
+      id, role, display_name, masked_display_name, school_id, college, visibility_level, created_at, updated_at
     ) VALUES (
-      @id, @role, @displayName, @maskedDisplayName, @schoolId, @visibilityLevel, @createdAt, @updatedAt
+      @id, @role, @displayName, @maskedDisplayName, @schoolId, @college, @visibilityLevel, @createdAt, @updatedAt
     )
   `);
 
@@ -120,6 +120,7 @@ export function seedDatabase() {
       displayName: currentStudent.displayName,
       maskedDisplayName: currentStudent.maskedDisplayName,
       schoolId: currentStudent.schoolId ?? null,
+      college: currentStudent.college ?? null,
       visibilityLevel: currentStudent.visibilityLevel,
       createdAt: timestamp,
       updatedAt: timestamp
@@ -132,6 +133,7 @@ export function seedDatabase() {
         displayName: user.displayName,
         maskedDisplayName: user.maskedDisplayName,
         schoolId: user.schoolId,
+        college: null,
         visibilityLevel: user.visibilityLevel,
         createdAt: timestamp,
         updatedAt: timestamp
@@ -239,4 +241,3 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   seedDatabase();
   console.log("Database seed completed.");
 }
-

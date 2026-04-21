@@ -28,7 +28,10 @@ page {
   --color-error: #e57373;
   --color-error-soft: rgba(229, 115, 115, 0.12);
 
-  background: var(--color-bg);
+  background:
+    radial-gradient(circle at top left, rgba(91, 192, 190, 0.09), transparent 32%),
+    radial-gradient(circle at top right, rgba(95, 135, 214, 0.08), transparent 28%),
+    var(--color-bg);
   color: var(--color-text);
   font-family: "PingFang SC", "SF Pro Text", sans-serif;
 }
@@ -55,14 +58,15 @@ textarea {
 .menu-stack,
 .progress-strip,
 .notice-stack,
-.privacy-note {
+.privacy-note,
+.submit-panel {
   display: grid;
   gap: var(--space-16);
 }
 
 .page-header {
   gap: var(--space-8);
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-12);
 }
 
 .section-header {
@@ -92,6 +96,10 @@ textarea {
   line-height: 1.4;
   font-weight: 700;
   color: var(--color-text);
+}
+
+.page-subtitle {
+  max-width: 320PX;
 }
 
 .page-subtitle,
@@ -130,11 +138,14 @@ textarea {
   border-radius: var(--radius-card);
   background: var(--color-surface);
   border: 1PX solid var(--color-border);
-  box-shadow: 0 10PX 24PX rgba(31, 55, 56, 0.04);
+  box-shadow: 0 12PX 30PX rgba(31, 55, 56, 0.06);
 }
 
 .app-card-accent {
-  background: var(--color-primary-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92)),
+    var(--color-primary-soft);
+  border-color: rgba(91, 192, 190, 0.18);
 }
 
 .app-button,
@@ -173,6 +184,7 @@ textarea {
 .app-button-primary {
   background: var(--color-primary);
   color: #ffffff;
+  box-shadow: 0 10PX 20PX rgba(47, 143, 145, 0.22);
 }
 
 .app-button-secondary {
@@ -196,21 +208,17 @@ textarea {
 }
 
 .mood-grid,
-.shortcut-grid,
 .chip-grid,
-.summary-grid,
 .status-filter-grid {
   display: grid;
   gap: var(--space-12);
 }
 
-.mood-grid,
-.shortcut-grid {
+.mood-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.chip-grid,
-.summary-grid {
+.chip-grid {
   grid-template-columns: 1fr;
 }
 
@@ -236,6 +244,25 @@ textarea {
   min-height: 120PX;
   padding: var(--space-16);
   text-align: left;
+  border-radius: 14PX;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.mood-grid .emotion-entry-card:nth-child(1) .emotion-entry-content {
+  background: rgba(232, 244, 250, 0.96);
+}
+
+.mood-grid .emotion-entry-card:nth-child(2) .emotion-entry-content {
+  background: rgba(236, 248, 245, 0.96);
+}
+
+.mood-grid .emotion-entry-card:nth-child(3) .emotion-entry-content {
+  background: rgba(245, 240, 250, 0.96);
+}
+
+.mood-grid .emotion-entry-card:nth-child(4) .emotion-entry-content {
+  background: rgba(246, 245, 236, 0.96);
 }
 
 .emotion-entry-eyebrow {
@@ -263,8 +290,192 @@ textarea {
   color: var(--color-text-soft);
 }
 
+.home-primary-action {
+  margin-top: 6PX;
+}
+
+.hero-support-note {
+  display: block;
+  font-size: 13PX;
+  line-height: 1.6;
+  color: var(--color-text-soft);
+}
+
 .search-box {
   margin: 0;
+}
+
+.search-panel-card,
+.profile-summary-card,
+.emergency-intro-card,
+.booking-helper-panel,
+.bootstrap-guide-list,
+.registration-hero-card,
+.registration-login-card,
+.registration-form-card,
+.home-registration-card,
+.home-benefit-list {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.registration-hero-head,
+.registration-step-row {
+  display: flex;
+  gap: var(--space-12);
+}
+
+.registration-hero-head {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.registration-hero-copy {
+  display: grid;
+  gap: var(--space-8);
+  flex: 1;
+}
+
+.registration-step-row {
+  align-items: stretch;
+}
+
+.registration-step {
+  flex: 1;
+  display: grid;
+  gap: 6PX;
+  padding: 12PX;
+  border-radius: 14PX;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.registration-step.is-active {
+  background: rgba(91, 192, 190, 0.14);
+  box-shadow: inset 0 0 0 1PX rgba(47, 143, 145, 0.18);
+}
+
+.registration-step.is-complete {
+  background: rgba(76, 175, 80, 0.1);
+  box-shadow: inset 0 0 0 1PX rgba(76, 175, 80, 0.18);
+}
+
+.registration-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24PX;
+  height: 24PX;
+  border-radius: var(--radius-pill);
+  background: rgba(31, 55, 56, 0.08);
+  color: var(--color-text);
+  font-size: 12PX;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.registration-step-label {
+  display: block;
+  font-size: 13PX;
+  line-height: 1.5;
+  color: var(--color-text-soft);
+}
+
+.registration-login-button,
+.registration-submit-button {
+  margin-top: 4PX;
+}
+
+.home-registration-step-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.home-registration-step {
+  display: grid;
+  gap: 6PX;
+  padding: 12PX;
+  border-radius: 14PX;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.home-registration-step.is-complete {
+  background: rgba(76, 175, 80, 0.1);
+  box-shadow: inset 0 0 0 1PX rgba(76, 175, 80, 0.18);
+}
+
+.home-registration-step-title,
+.home-benefit-title {
+  display: block;
+  font-size: 14PX;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.home-registration-step-status {
+  display: block;
+  font-size: 12PX;
+  line-height: 1.4;
+  color: var(--color-text-soft);
+}
+
+.home-benefit-item {
+  display: grid;
+  gap: 6PX;
+  padding: 14PX;
+  border-radius: 14PX;
+  background: rgba(246, 250, 250, 0.88);
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.registration-field-block {
+  display: grid;
+  gap: 8PX;
+  padding: 14PX;
+  border-radius: 14PX;
+  background: rgba(246, 250, 250, 0.88);
+  box-shadow: inset 0 0 0 1PX rgba(91, 139, 141, 0.08);
+}
+
+.bootstrap-guide-button {
+  min-height: 56PX;
+  border-radius: 14PX;
+}
+
+.bootstrap-guide-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  width: 100%;
+  padding: 14PX 16PX;
+  text-align: left;
+}
+
+.bootstrap-guide-title {
+  display: block;
+  font-size: 15PX;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.bootstrap-guide-arrow {
+  display: block;
+  font-size: 12PX;
+  line-height: 1.4;
+  color: var(--color-primary-strong);
+}
+
+.search-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  flex-wrap: wrap;
 }
 
 .search-input,
@@ -334,11 +545,27 @@ textarea {
 .counselor-card,
 .booking-card,
 .contact-card,
-.summary-card,
 .appointment-card,
 .selected-counselor-card {
   display: grid;
   gap: var(--space-16);
+}
+
+.counselor-card,
+.appointment-card,
+.selected-counselor-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.counselor-card::before,
+.appointment-card::before,
+.selected-counselor-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4PX;
+  background: linear-gradient(180deg, var(--color-primary), rgba(95, 135, 214, 0.65));
 }
 
 .counselor-card-header,
@@ -388,7 +615,7 @@ textarea {
 .appointment-card-copy {
   flex: 1;
   display: grid;
-  gap: var(--space-8);
+  gap: 6PX;
 }
 
 .counselor-card-footer,
@@ -400,6 +627,109 @@ textarea {
   gap: var(--space-12);
 }
 
+.detail-sheet-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-24) var(--space-16) calc(24PX + env(safe-area-inset-bottom));
+  background: rgba(31, 55, 56, 0.38);
+}
+
+.detail-sheet-panel {
+  width: 100%;
+}
+
+.detail-sheet-card,
+.detail-sheet-copy,
+.detail-sheet-section,
+.detail-sheet-footer {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.detail-sheet-card {
+  gap: var(--space-16);
+  border-radius: 24PX 24PX 20PX 20PX;
+}
+
+.detail-sheet-head,
+.detail-sheet-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.detail-sheet-summary {
+  padding: 14PX;
+  border-radius: 18PX;
+  background: var(--color-primary-soft);
+}
+
+.detail-sheet-summary-copy {
+  display: grid;
+  gap: 6PX;
+  flex: 1;
+}
+
+.detail-sheet-primary {
+  display: block;
+  font-size: 20PX;
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.detail-sheet-secondary,
+.detail-row-label,
+.detail-sheet-note {
+  display: block;
+  font-size: 14PX;
+  line-height: 1.6;
+  color: var(--color-text-soft);
+}
+
+.detail-sheet-section-title {
+  display: block;
+  font-size: 16PX;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.detail-sheet-grid {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.detail-row {
+  display: grid;
+  gap: 4PX;
+  padding: 12PX 14PX;
+  border-radius: 14PX;
+  background: rgba(31, 55, 56, 0.04);
+}
+
+.detail-row-value {
+  display: block;
+  font-size: 15PX;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.detail-sheet-note-panel {
+  padding: 14PX;
+  border-radius: 14PX;
+  background: rgba(31, 55, 56, 0.04);
+}
+
+.detail-sheet-note-panel-warning {
+  background: var(--color-warning-soft);
+}
+
 .counselor-card-actions {
   display: flex;
   align-items: center;
@@ -408,12 +738,28 @@ textarea {
 
 .info-panel {
   display: grid;
-  gap: var(--space-8);
+  gap: 4PX;
   flex: 1;
+  padding: 10PX 12PX;
+  border-radius: 14PX;
+  background: rgba(31, 55, 56, 0.04);
 }
 
 .selected-counselor-name {
   font-size: 20PX;
+}
+
+.card-kicker,
+.service-note-label {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4PX 10PX;
+  border-radius: var(--radius-pill);
+  background: rgba(91, 192, 190, 0.1);
+  color: var(--color-primary-strong);
+  font-size: 12PX;
+  line-height: 1.4;
+  font-weight: 600;
 }
 
 .progress-strip {
@@ -463,7 +809,7 @@ textarea {
 .status-filter-card.is-active {
   background: var(--color-primary);
   color: #ffffff;
-  box-shadow: none;
+  box-shadow: 0 10PX 20PX rgba(47, 143, 145, 0.18);
 }
 
 .slot-card {
@@ -483,13 +829,26 @@ textarea {
   font-weight: 700;
 }
 
-.summary-item,
 .appointment-detail-item {
   display: grid;
   gap: var(--space-8);
   padding: 12PX;
   border-radius: 14PX;
   background: rgba(91, 192, 190, 0.08);
+}
+
+.form-helper-text,
+.submit-summary-text {
+  display: block;
+  font-size: 13PX;
+  line-height: 1.6;
+  color: var(--color-text-soft);
+}
+
+.booking-helper-panel {
+  padding: 12PX 14PX;
+  border-radius: 14PX;
+  background: rgba(31, 55, 56, 0.04);
 }
 
 .appointment-detail-grid {
@@ -567,6 +926,19 @@ textarea {
   background: rgba(31, 55, 56, 0.04);
 }
 
+.service-note-list {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.service-note-item {
+  display: grid;
+  gap: 8PX;
+  padding: 12PX 14PX;
+  border-radius: 14PX;
+  background: rgba(31, 55, 56, 0.04);
+}
+
 .privacy-line {
   display: block;
   font-size: 14PX;
@@ -607,6 +979,7 @@ textarea {
 
 .status-filter-card {
   min-height: 72PX;
+  border-radius: 14PX;
 }
 
 .status-filter-content {
@@ -627,4 +1000,15 @@ textarea {
   padding: 12PX 14PX;
   border-radius: 14PX;
   background: rgba(31, 55, 56, 0.04);
+}
+
+.submit-panel {
+  gap: var(--space-12);
+  padding: 14PX;
+  border-radius: 16PX;
+  background: rgba(91, 192, 190, 0.08);
+}
+
+.contact-card .app-button {
+  margin-top: 2PX;
 }

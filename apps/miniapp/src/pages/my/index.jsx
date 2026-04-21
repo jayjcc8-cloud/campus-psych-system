@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import AppButton from "../../components/app-button";
 import AppCard from "../../components/app-card";
 import AppointmentCard from "../../components/appointment-card";
+import AppointmentDetailSheet from "../../components/appointment-detail-sheet";
 import EmptyState from "../../components/empty-state";
 import PageHeader from "../../components/page-header";
 import SectionHeader from "../../components/section-header";
 import { cancelAppointment, getCounselors, getMyAppointments } from "../../lib/api";
+import { consumeAppointmentFocus } from "../../lib/appointment-focus";
 import { appointmentsFixture, counselorsFixture } from "../../lib/fixtures";
 
 const statusSections = [
@@ -15,9 +17,7 @@ const statusSections = [
   { key: "pending", title: "待确认" },
   { key: "confirmed", title: "已确认" },
   { key: "completed", title: "已完成" },
-  { key: "cancelled", title: "已取消" },
-  { key: "no_show", title: "未到场" },
-  { key: "expired", title: "已过期" }
+  { key: "cancelled", title: "已取消" }
 ];
 
 export default function MyPage() {
@@ -27,6 +27,7 @@ export default function MyPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [cancellingId, setCancellingId] = useState("");
+  const [detailAppointmentId, setDetailAppointmentId] = useState("");
 
   const loadAppointments = () => {
     setLoading(true);
@@ -56,6 +57,15 @@ export default function MyPage() {
   }, []);
 
   useDidShow(() => {
+    const focusIntent = consumeAppointmentFocus();
+
+    if (focusIntent?.status) {
+      setActiveStatus(focusIntent.status);
+      if (focusIntent.message) {
+        Taro.showToast({ title: focusIntent.message, icon: "success" });
+      }
+    }
+
     loadAppointments();
   });
 
@@ -114,25 +124,32 @@ export default function MyPage() {
     activeStatus === "all"
       ? appointments
       : appointments.filter((appointment) => appointment.status === activeStatus);
+  const statusCountMap = statusSections.reduce((result, section) => {
+    result[section.key] =
+      section.key === "all"
+        ? appointments.length
+        : appointments.filter((appointment) => appointment.status === section.key).length;
+
+    return result;
+  }, {});
+
+  const detailAppointment =
+    appointments.find((appointment) => appointment.id === detailAppointmentId) ?? null;
 
   return (
     <View className="page-shell">
       <PageHeader
         kicker="我的预约"
-        title="把预约记录按状态整理好"
-        subtitle="你可以更快看到哪一条还在等待确认，哪一条已经完成；进行中的预约也可以直接在这里取消。"
+        title="我的预约"
+        subtitle="状态变化和详情更新都会同步到这里。"
       />
 
       <AppCard tone="accent">
-        <SectionHeader title="状态筛选" description="先按状态看，再决定是否查看详情，减少所有记录堆在一起的负担。" />
+        <SectionHeader title="按状态查看" extra={<Text className="count-badge">{appointments.length} 条</Text>} />
         <View className="status-filter-grid">
-          {statusSections.map((section) => {
-            const count =
-              section.key === "all"
-                ? appointments.length
-                : appointments.filter((appointment) => appointment.status === section.key).length;
-
-            return (
+          {statusSections
+            .filter((section) => section.key === "all" || statusCountMap[section.key] > 0 || section.key === activeStatus)
+            .map((section) => (
               <AppButton
                 className={section.key === activeStatus ? "status-filter-card is-active" : "status-filter-card"}
                 key={section.key}
@@ -141,18 +158,14 @@ export default function MyPage() {
               >
                 <View className="status-filter-content">
                   <Text className="status-filter-title">{section.title}</Text>
-                  <Text className="status-filter-count">{count}</Text>
+                  <Text className="status-filter-count">{statusCountMap[section.key]}</Text>
                 </View>
               </AppButton>
-            );
-          })}
+            ))}
         </View>
       </AppCard>
 
-      <View className="tag-row list-meta-row">
-        <Text className="inline-note">{loading ? "正在同步你的预约记录..." : `共 ${appointments.length} 条预约记录`}</Text>
-        <Text className="inline-note">仅展示你自己的预约信息</Text>
-      </View>
+      {loading ? <Text className="inline-note">正在同步你的预约记录...</Text> : null}
       {loadError ? <Text className="error-banner">{loadError}</Text> : null}
 
       <View className="section-stack">
@@ -165,16 +178,24 @@ export default function MyPage() {
               showActions
               canCancel={appointment.status === "pending" || appointment.status === "confirmed"}
               cancelling={cancellingId === appointment.id}
+              onView={() => setDetailAppointmentId(appointment.id)}
               onCancel={() => handleCancel(appointment)}
             />
           ))
         ) : (
           <EmptyState
             title={appointments.length === 0 ? "当前还没有预约记录" : "这个状态下还没有预约"}
-            description={appointments.length === 0 ? "准备好时，可以从首页或咨询师页开始预约。" : "你可以切换到其他状态，看看已经提交或已完成的预约记录。"}
+            description={appointments.length === 0 ? "准备好时，可以去预约一位咨询老师。" : "换个状态看看。"}
           />
         )}
       </View>
+
+      <AppointmentDetailSheet
+        appointment={detailAppointment}
+        counselors={counselors}
+        open={Boolean(detailAppointment)}
+        onClose={() => setDetailAppointmentId("")}
+      />
     </View>
   );
 }

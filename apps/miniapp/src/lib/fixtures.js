@@ -5,7 +5,7 @@ export const counselorsFixture = [
     specialty: ["academic_pressure", "relationship"],
     intro: "Focuses on transition stress and relationship-related support.",
     gender: "female",
-    nextAvailableSlot: "2026-04-19T09:00:00+08:00"
+    nextAvailableSlot: "2026-04-22T09:00:00+08:00"
   },
   {
     id: "counselor-002",
@@ -13,7 +13,7 @@ export const counselorsFixture = [
     specialty: ["sleep", "emotion"],
     intro: "Supports students navigating burnout, sleep, and emotional regulation.",
     gender: "male",
-    nextAvailableSlot: "2026-04-19T14:00:00+08:00"
+    nextAvailableSlot: "2026-04-23T14:00:00+08:00"
   }
 ];
 
@@ -21,8 +21,16 @@ export const scheduleFixture = [
   {
     id: "slot-001",
     counselorId: "counselor-001",
-    startTime: "2026-04-19T09:00:00+08:00",
-    endTime: "2026-04-19T10:00:00+08:00",
+    startTime: "2026-04-22T09:00:00+08:00",
+    endTime: "2026-04-22T10:00:00+08:00",
+    capacity: 1,
+    available: true
+  },
+  {
+    id: "slot-002",
+    counselorId: "counselor-002",
+    startTime: "2026-04-23T14:00:00+08:00",
+    endTime: "2026-04-23T15:00:00+08:00",
     capacity: 1,
     available: true
   }
@@ -38,8 +46,8 @@ export const appointmentsFixture = [
     consultMode: "offline",
     status: "pending",
     remark: "Need support around thesis stress.",
-    createdAt: "2026-04-18T09:30:00+08:00",
-    updatedAt: "2026-04-18T09:30:00+08:00"
+    createdAt: "2026-04-20T09:30:00+08:00",
+    updatedAt: "2026-04-20T09:30:00+08:00"
   }
 ];
 
@@ -51,4 +59,25 @@ export const publicConfigFixture = {
     { label: "Campus Hospital", phone: "021-55555678" }
   ],
   forceStudentIdBinding: false
+};
+
+export const studentProfileFixture = {
+  id: "student-001",
+  role: "student",
+  displayName: "",
+  maskedDisplayName: "未注册同学",
+  schoolId: "",
+  college: "",
+  visibilityLevel: "masked"
+};
+
+export const studentBootstrapFixture = {
+  profile: studentProfileFixture,
+  publicConfig: publicConfigFixture,
+  requirements: {
+    privacyNoticeRequired: true,
+    userAgreementRequired: true,
+    informedConsentRequired: true,
+    studentIdBindingRequired: false
+  }
 };

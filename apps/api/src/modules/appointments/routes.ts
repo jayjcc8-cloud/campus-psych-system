@@ -45,7 +45,10 @@ export async function registerAppointmentRoutes(app: FastifyInstance) {
 
   app.get("/", { preHandler: requireRoles("admin") }, async () => listAppointments());
 
-  app.get("/my", { preHandler: requireRoles("student") }, async () => listMyAppointments());
+  app.get("/my", { preHandler: requireRoles("student") }, async (request) => {
+    const actor = getActor(request);
+    return listMyAppointments(actor.operatorId);
+  });
 
   app.post("/", { preHandler: requireRoles("student") }, async (request, reply) => {
     const payload = createAppointmentSchema.parse(request.body);

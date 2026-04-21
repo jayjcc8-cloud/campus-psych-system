@@ -21,12 +21,30 @@ const statusHintMap = {
   expired: "预约已过期，请重新选择时间。"
 };
 
+const statusLabelMap = {
+  pending: "待确认",
+  confirmed: "已确认",
+  completed: "已完成",
+  cancelled: "已取消",
+  no_show: "未到场",
+  expired: "已过期"
+};
+
+const consultModeLabelMap = {
+  offline: "线下面谈",
+  online: "线上沟通"
+};
+
 export function formatIssueType(issueType) {
   return issueLabelMap[issueType] ?? issueType;
 }
 
 export function formatAppointmentHint(status) {
   return statusHintMap[status] ?? "请留意当前预约状态变化。";
+}
+
+export function formatAppointmentStatus(status) {
+  return statusLabelMap[status] ?? status;
 }
 
 export function formatDateTime(isoString) {
@@ -89,7 +107,7 @@ export function formatCounselorSummary(counselor) {
 
   if (counselor.specialty?.length) {
     const specialties = counselor.specialty.slice(0, 2).map(formatIssueType).join("、");
-    return `更擅长陪你梳理${specialties}相关的困扰，适合先从当前最想聊的主题开始。`;
+    return `更擅长陪你梳理${specialties}相关困扰，适合从当前最想聊的主题开始。`;
   }
 
   return "提供温和、克制的校园心理支持。";
@@ -100,5 +118,14 @@ export function formatAvailabilityStatus(nextAvailableSlot) {
 }
 
 export function formatAvailabilityHint(nextAvailableSlot) {
-  return nextAvailableSlot ? `最近可约：${formatDateTime(nextAvailableSlot)}` : "近期暂无开放时段";
+  return nextAvailableSlot ? `下一个可约时间 ${formatDateTime(nextAvailableSlot)}` : "近期暂无开放时段";
+}
+
+export function formatConsultMode(consultMode) {
+  return consultModeLabelMap[consultMode] ?? "校园支持";
+}
+
+export function formatOptionalText(value, fallback = "未填写") {
+  const normalizedValue = typeof value === "string" ? value.trim() : "";
+  return normalizedValue || fallback;
 }

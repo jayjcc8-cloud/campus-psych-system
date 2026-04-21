@@ -9,12 +9,13 @@ import {
   formatIssueType
 } from "../../lib/display";
 
-export default function CounselorCard({ counselor, onBook }) {
+export default function CounselorCard({ counselor, onBook, actionLabel = "预约咨询" }) {
   return (
     <AppCard className="counselor-card">
       <View className="counselor-card-header">
         <View className="avatar-badge">{formatCounselorDisplayName(counselor.displayName).slice(0, 1)}</View>
         <View className="counselor-card-body">
+          <Text className="card-kicker">校园支持</Text>
           <View className="counselor-card-topline">
             <Text className="counselor-name">{formatCounselorDisplayName(counselor.displayName)}</Text>
             <Text className={counselor.nextAvailableSlot ? "availability-pill is-open" : "availability-pill"}>
@@ -36,14 +37,10 @@ export default function CounselorCard({ counselor, onBook }) {
       <View className="counselor-card-footer">
         <View className="info-panel">
           <Text className="section-copy">{formatAvailabilityHint(counselor.nextAvailableSlot)}</Text>
-          <Text className="inline-note">先进入预约页，再确认时间和补充说明。</Text>
         </View>
         <View className="counselor-card-actions">
-          <AppButton block={false} variant="ghost" onClick={onBook}>
-            查看详情
-          </AppButton>
           <AppButton block={false} disabled={!counselor.nextAvailableSlot} onClick={onBook}>
-            预约
+            {actionLabel}
           </AppButton>
         </View>
       </View>

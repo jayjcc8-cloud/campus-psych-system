@@ -6,6 +6,6 @@ export interface UserProfile {
   displayName: string;
   maskedDisplayName: string;
   schoolId?: string;
+  college?: string;
   visibilityLevel: IdentityVisibilityLevel;
 }
-
