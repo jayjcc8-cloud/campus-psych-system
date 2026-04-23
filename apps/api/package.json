@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "nest start --watch --entryFile apps/api/src/main",
     "build": "nest build",
-    "start": "node dist/main.js",
+    "start": "node dist/apps/api/src/main.js",
     "check": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
