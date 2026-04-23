@@ -1,26 +1,23 @@
 {
-  "name": "@campus-psych/admin-web",
-  "version": "0.1.0",
+  "name": "@teacher-support/admin-web",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
-    "lint": "tsc -p tsconfig.json --noEmit",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc --noEmit && vite build",
+    "check": "vue-tsc --noEmit",
+    "lint": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@campus-psych/domain": "workspace:*",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-router-dom": "^7.5.3"
+    "@vitejs/plugin-vue": "^5.0.5",
+    "@teacher-support/shared": "workspace:*",
+    "vite": "^5.3.3",
+    "vue": "^3.4.31",
+    "vue-router": "^4.4.0"
   },
   "devDependencies": {
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
-    "@vitejs/plugin-react": "^4.4.1",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "typescript": "^5.4.5",
+    "vue-tsc": "^2.0.26"
   }
 }
-

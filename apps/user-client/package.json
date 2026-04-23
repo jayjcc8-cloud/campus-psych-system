@@ -1,0 +1,30 @@
+{
+  "name": "@teacher-support/user-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin",
+    "dev:h5": "uni -p h5",
+    "build:h5": "uni build -p h5",
+    "check": "vue-tsc --noEmit",
+    "lint": "vue-tsc --noEmit",
+    "build": "pnpm build:mp-weixin && pnpm build:h5"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-4020420240722002",
+    "@dcloudio/uni-components": "3.0.0-4020420240722002",
+    "@dcloudio/uni-h5": "3.0.0-4020420240722002",
+    "@dcloudio/uni-mp-weixin": "3.0.0-4020420240722002",
+    "@teacher-support/shared": "workspace:*",
+    "vue": "^3.4.31"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "3.4.8",
+    "@dcloudio/vite-plugin-uni": "3.0.0-4020420240722002",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.3",
+    "vue-tsc": "^2.0.26"
+  }
+}

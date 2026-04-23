@@ -1,0 +1,71 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "教师支持"
+      }
+    },
+    {
+      "path": "pages/request/index",
+      "style": {
+        "navigationBarTitleText": "提交支持请求"
+      }
+    },
+    {
+      "path": "pages/receipt/index",
+      "style": {
+        "navigationBarTitleText": "匿名回执"
+      }
+    },
+    {
+      "path": "pages/requests/index",
+      "style": {
+        "navigationBarTitleText": "我的请求"
+      }
+    },
+    {
+      "path": "pages/lookup/index",
+      "style": {
+        "navigationBarTitleText": "回执查询"
+      }
+    },
+    {
+      "path": "pages/privacy/index",
+      "style": {
+        "navigationBarTitleText": "隐私说明"
+      }
+    },
+    {
+      "path": "pages/emergency/index",
+      "style": {
+        "navigationBarTitleText": "紧急支持"
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#7A9993",
+    "selectedColor": "#1F7A70",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/request/index",
+        "text": "提交"
+      },
+      {
+        "pagePath": "pages/requests/index",
+        "text": "我的请求"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "教师匿名心理支持",
+    "navigationBarBackgroundColor": "#F4FAF7",
+    "backgroundColor": "#F4FAF7"
+  }
+}

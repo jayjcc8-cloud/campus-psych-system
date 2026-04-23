@@ -1,39 +1,57 @@
-# Campus Psych Platform
+# 教师匿名心理支持平台
 
-This repository contains the initial project scaffold for the campus psychology booking and support platform defined in [`campus_psych_prd_v1_1.md`](./campus_psych_prd_v1_1.md).
+这是一次按新产品定位重建的代码库：面向教师群体，提供匿名优先的心理支持请求入口。产品尊重用户自主权，不强制登录、不强制绑定身份、不追问未回应或未到场。
 
-## Workspace layout
+## 技术栈
 
-- `apps/api`: Fastify-based API service
-- `apps/admin-web`: React + Vite admin console for counselors and operators
-- `apps/miniapp`: Taro miniapp for students
-- `packages/domain`: shared domain types, enums, fixtures, and product rules
-- `docs`: implementation notes and project bootstrap guidance
+- 用户端：`uni-app + Vue3 + TypeScript`
+- 管理后台：`Vue3 + Vite + TypeScript`
+- API：`NestJS + TypeScript`
+- 数据库：`PostgreSQL`
+- 工作区：`pnpm workspace`
+- 部署/本地环境：`Docker Compose`
 
-## Suggested boot order
+## 目录
 
-1. Install `pnpm` and workspace dependencies.
-2. Run `pnpm --filter @campus-psych/api db:init` to create and seed the local SQLite database.
-3. Start the API and validate health plus appointment state rules.
-4. Start the admin web to review dashboards and workflow routes.
-5. Start the miniapp to validate the student-side booking funnel.
+```text
+apps/user-client   匿名教师支持用户端
+apps/admin-web     心理服务中心管理后台
+apps/api           NestJS REST API
+packages/shared    共享类型、状态、校验 schema
+infra              Docker Compose 环境
+legacy             旧学生预约系统归档
+```
 
-## Database
+## 本地启动
 
-- Default database file: `apps/api/data/campus-psych.sqlite`
-- Schema source: `apps/api/src/db/schema.sql`
-- Init scripts: `pnpm --filter @campus-psych/api db:migrate`, `db:seed`, `db:init`
+```bash
+pnpm install
+docker compose -f infra/docker-compose.yml up postgres
+pnpm dev:api
+pnpm dev:admin
+pnpm dev:user
+```
 
-## Product assumptions baked into the scaffold
+也可以一键启动 API 与后台：
 
-- MVP is offline counseling only.
-- Anonymous display is enabled by default.
-- Risk flags are workflow labels, not medical outcomes.
-- Appointment, risk, and permissions logic is shared through `packages/domain`.
+```bash
+docker compose -f infra/docker-compose.yml up
+```
 
-## Next engineering steps
+默认后台账号：
 
-1. Replace the seeded SQLite repositories with production-grade database infrastructure when deployment targets are confirmed.
-2. Add unified authentication and school-specific identity integration.
-3. Convert placeholder route handlers into full validation, authorization, and error-handling modules.
-4. Add end-to-end tests around appointment locking, privacy, and risk escalation.
+```text
+账号：center-admin
+密码：Admin@123456
+```
+
+## 核心能力
+
+- 匿名提交支持请求
+- 可选邮箱或其他联系方式
+- 选择心理服务中心开放时段
+- 生成匿名回执码
+- 凭回执码查看状态和撤回请求
+- 中心后台处理请求池
+- 温和限流和垃圾标记
+- 后台操作审计
