@@ -76,11 +76,32 @@ CREATE TABLE IF NOT EXISTS support_slots (
   updated_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS assessments (
+  id UUID PRIMARY KEY,
+  receipt_code_hash TEXT NOT NULL UNIQUE,
+  anonymous_session_hash TEXT NOT NULL,
+  preferred_name TEXT,
+  who5_score INTEGER NOT NULL,
+  phq9_score INTEGER NOT NULL,
+  gad7_score INTEGER NOT NULL,
+  wellbeing_level TEXT NOT NULL,
+  depression_level TEXT NOT NULL,
+  anxiety_level TEXT NOT NULL,
+  risk_level TEXT NOT NULL CHECK (risk_level IN ('low', 'medium', 'high')),
+  safety_flag BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_assessments_session_created ON assessments(anonymous_session_hash, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assessments_risk_created ON assessments(risk_level, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS support_requests (
   id UUID PRIMARY KEY,
   receipt_code_hash TEXT NOT NULL UNIQUE,
   anonymous_session_hash TEXT NOT NULL,
   ip_hash TEXT NOT NULL,
+  preferred_name TEXT,
+  assessment_id UUID REFERENCES assessments(id),
   slot_id UUID NOT NULL REFERENCES support_slots(id),
   issue_type TEXT NOT NULL,
   contact_email TEXT,
@@ -96,6 +117,9 @@ CREATE TABLE IF NOT EXISTS support_requests (
 CREATE INDEX IF NOT EXISTS idx_support_requests_slot_status ON support_requests(slot_id, status);
 CREATE INDEX IF NOT EXISTS idx_support_requests_session_created ON support_requests(anonymous_session_hash, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_support_requests_ip_created ON support_requests(ip_hash, created_at DESC);
+
+ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS preferred_name TEXT;
+ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS assessment_id UUID REFERENCES assessments(id);
 
 CREATE TABLE IF NOT EXISTS support_request_events (
   id UUID PRIMARY KEY,

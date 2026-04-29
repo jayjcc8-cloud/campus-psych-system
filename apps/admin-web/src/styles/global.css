@@ -245,6 +245,32 @@ label {
   gap: 14px;
 }
 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  border: 1px solid rgba(36, 96, 88, 0.12);
+  border-radius: 22px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.metric-card h3 {
+  margin: 10px 0 0;
+  font-size: 34px;
+}
+
+.metric-warn {
+  background: #fff7e8;
+}
+
+.metric-danger {
+  background: #fff0ed;
+}
+
 .slot-card,
 .audit-card {
   display: flex;
@@ -292,6 +318,10 @@ label {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-grid {
     grid-template-columns: 1fr;
   }
 }

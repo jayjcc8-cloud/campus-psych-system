@@ -1,14 +1,26 @@
 const receiptStorageKey = "support_receipts";
 
 export interface LocalReceipt {
+  kind: "support_request" | "assessment";
   receiptCode: string;
-  requestId: string;
+  itemId: string;
+  title: string;
   createdAt: string;
 }
 
 export function listLocalReceipts(): LocalReceipt[] {
   const stored = uni.getStorageSync(receiptStorageKey);
-  return Array.isArray(stored) ? stored : [];
+  if (!Array.isArray(stored)) {
+    return [];
+  }
+
+  return stored.map((item) => ({
+    kind: item.kind === "assessment" ? "assessment" : "support_request",
+    receiptCode: item.receiptCode,
+    itemId: item.itemId ?? item.requestId ?? item.receiptCode,
+    title: item.title ?? (item.kind === "assessment" ? "匿名心理测评" : "匿名支持请求"),
+    createdAt: item.createdAt
+  }));
 }
 
 export function saveLocalReceipt(receipt: LocalReceipt) {

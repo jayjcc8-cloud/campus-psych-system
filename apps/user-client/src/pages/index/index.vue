@@ -7,8 +7,9 @@
         这里面向教师群体。你可以匿名提交支持请求，也可以选择是否留下邮箱。中心会在你选择的时段保持接纳和等待，不追问、不评价。
       </text>
       <view class="stack">
+        <button class="button-soft" @click="go('/pages/assessment/index')">先做一份心理测评</button>
         <button @click="go('/pages/request/index')">提交支持请求</button>
-        <button class="button-soft" @click="go('/pages/requests/index')">查看我的请求</button>
+        <button class="button-soft" @click="go('/pages/requests/index')">查看我的回执</button>
       </view>
     </view>
 
@@ -16,6 +17,10 @@
       <view class="card">
         <text class="eyebrow">尊重自主</text>
         <text class="copy">如果你临时不想继续，不需要解释。你也可以通过回执码撤回请求。</text>
+      </view>
+      <view class="card">
+        <text class="eyebrow">状态参考</text>
+        <text class="copy">心理测评只用于帮助你理解近期状态和支持建议，不作为医学诊断。</text>
       </view>
       <view class="card">
         <text class="eyebrow">联系方式可选</text>

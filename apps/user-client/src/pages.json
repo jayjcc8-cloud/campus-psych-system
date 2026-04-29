@@ -13,6 +13,18 @@
       }
     },
     {
+      "path": "pages/assessment/index",
+      "style": {
+        "navigationBarTitleText": "心理测评"
+      }
+    },
+    {
+      "path": "pages/assessment-result/index",
+      "style": {
+        "navigationBarTitleText": "测评结果"
+      }
+    },
+    {
       "path": "pages/receipt/index",
       "style": {
         "navigationBarTitleText": "匿名回执"
@@ -54,11 +66,11 @@
       },
       {
         "pagePath": "pages/request/index",
-        "text": "提交"
+        "text": "支持"
       },
       {
         "pagePath": "pages/requests/index",
-        "text": "我的请求"
+        "text": "我的回执"
       }
     ]
   },

@@ -1,6 +1,18 @@
-import type { AuditLogEntry, SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
+import type { AssessmentStats, AuditLogEntry, SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:4000";
+function resolveApiBaseUrl() {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:4000`;
+  }
+
+  return "http://127.0.0.1:4000";
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 const tokenKey = "teacher_support_admin_token";
 
 export function getToken() {
@@ -23,6 +35,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
+    if (response.status === 401) {
+      localStorage.removeItem(tokenKey);
+    }
     throw new Error(payload?.message ?? "请求失败");
   }
 
@@ -76,4 +91,8 @@ export function updateSlot(
 
 export function listAuditLogs() {
   return request<AuditLogEntry[]>("/admin/audit-logs");
+}
+
+export function listAssessmentStats() {
+  return request<AssessmentStats>("/admin/assessment-stats");
 }

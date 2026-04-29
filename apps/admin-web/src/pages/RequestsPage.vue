@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { issueTypeLabels, requestStatusLabels, type SupportRequestSummary } from "@teacher-support/shared";
+import { assessmentRiskLabels, requestStatusLabels, type SupportRequestSummary } from "@teacher-support/shared";
 import { listEvents, listRequests, updateRequest } from "../api/client";
 import AdminShell from "../components/AdminShell.vue";
 
@@ -81,7 +81,7 @@ onMounted(load);
             @click="openDetail(item)"
           >
             <div>
-              <p class="eyebrow">{{ issueTypeLabels[item.issueType] }}</p>
+              <p class="eyebrow">{{ item.preferredName || "匿名支持请求" }}</p>
               <h3>{{ requestStatusLabels[item.status] }}</h3>
               <p>{{ new Date(item.slotStartTime || item.createdAt).toLocaleString() }}</p>
             </div>
@@ -94,8 +94,9 @@ onMounted(load);
 
       <section class="detail-panel" v-if="selected">
         <p class="eyebrow">请求详情</p>
-        <h2>{{ issueTypeLabels[selected.issueType] }}</h2>
+        <h2>{{ selected.preferredName || "匿名支持请求" }}</h2>
         <p class="muted">请求编号 {{ selected.id }}</p>
+        <p v-if="selected.assessmentRiskLevel" class="muted">关联测评：{{ assessmentRiskLabels[selected.assessmentRiskLevel] }}</p>
         <p>{{ selected.remark || "未填写补充说明" }}</p>
         <div class="contact-box">
           <button class="secondary" @click="revealContact = !revealContact">

@@ -12,8 +12,9 @@
     </view>
     <view v-if="request" class="card stack">
       <text class="pill">{{ statusLabel }}</text>
-      <text class="title">{{ issueLabel }}</text>
+      <text class="title">{{ request.preferredName || "匿名支持请求" }}</text>
       <text class="muted">{{ new Date(request.slotStartTime || request.createdAt).toLocaleString() }}</text>
+      <text v-if="request.assessmentRiskLevel" class="muted">关联测评：{{ assessmentRiskLabel }}</text>
       <text class="copy">{{ request.remark || "未填写补充说明" }}</text>
       <button v-if="canWithdraw" class="button-soft" @click="withdraw">撤回请求</button>
     </view>
@@ -22,7 +23,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { issueTypeLabels, requestStatusLabels, type SupportRequestSummary } from "@teacher-support/shared";
+import { assessmentRiskLabels, requestStatusLabels, type SupportRequestSummary } from "@teacher-support/shared";
 import { getRequestByReceipt, withdrawRequest } from "../../api/client";
 
 const pages = getCurrentPages();
@@ -32,7 +33,9 @@ const request = ref<SupportRequestSummary | null>(null);
 const error = ref("");
 
 const statusLabel = computed(() => (request.value ? requestStatusLabels[request.value.status] : ""));
-const issueLabel = computed(() => (request.value ? issueTypeLabels[request.value.issueType] : ""));
+const assessmentRiskLabel = computed(() =>
+  request.value?.assessmentRiskLevel ? assessmentRiskLabels[request.value.assessmentRiskLevel] : ""
+);
 const canWithdraw = computed(() => request.value && ["new", "viewed", "noted"].includes(request.value.status));
 
 async function lookup() {

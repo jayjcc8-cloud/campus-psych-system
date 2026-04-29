@@ -19,6 +19,7 @@ function logout() {
 
       <nav class="nav-list">
         <RouterLink to="/">请求池</RouterLink>
+        <RouterLink to="/assessment-stats">测评概览</RouterLink>
         <RouterLink to="/slots">时段配置</RouterLink>
         <RouterLink to="/audit-logs">审计日志</RouterLink>
       </nav>

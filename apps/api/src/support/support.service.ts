@@ -8,7 +8,9 @@ const activeStatuses: SupportRequestStatus[] = ["new", "viewed", "noted"];
 
 interface CreateRequestInput {
   slotId: string;
-  issueType: SupportIssueType;
+  issueType?: SupportIssueType;
+  preferredName?: string;
+  assessmentId?: string;
   contactEmail?: string;
   contactNote?: string;
   remark?: string;
@@ -91,10 +93,12 @@ export class SupportService {
   async createRequest(input: CreateRequestInput) {
     const anonymousSessionHash = stableHash(input.anonymousSessionId);
     const ipHash = stableHash(input.ipAddress);
+    const normalizedPreferredName = normalizeOptional(input.preferredName);
     const normalizedRemark = normalizeOptional(input.remark);
     const normalizedEmail = normalizeOptional(input.contactEmail);
     const normalizedContactNote = normalizeOptional(input.contactNote);
-    const fingerprint = contentFingerprint(`${input.slotId}:${input.issueType}:${normalizedRemark ?? ""}`);
+    const normalizedIssueType = input.issueType ?? "other";
+    const fingerprint = contentFingerprint(`${input.slotId}:${normalizedIssueType}:${normalizedRemark ?? ""}`);
 
     await this.assertRateLimit({ anonymousSessionHash, ipHash, fingerprint });
 
@@ -103,6 +107,16 @@ export class SupportService {
     const requestId = createId();
 
     await this.database.transaction(async (client) => {
+      if (input.assessmentId) {
+        const assessment = await client.query<{ id: string }>(
+          "SELECT id FROM assessments WHERE id = $1 AND anonymous_session_hash = $2",
+          [input.assessmentId, anonymousSessionHash]
+        );
+        if (!assessment.rows[0]) {
+          throw new BadRequestException("测评结果暂时无法关联，请重新提交测评后再试。");
+        }
+      }
+
       const slot = await client.query<{ capacity: number; active_count: string }>(
         `SELECT slots.capacity,
                 COUNT(requests.id) FILTER (WHERE requests.status = ANY($2)) AS active_count
@@ -123,16 +137,18 @@ export class SupportService {
 
       await client.query(
         `INSERT INTO support_requests (
-          id, receipt_code_hash, anonymous_session_hash, ip_hash, slot_id, issue_type,
+          id, receipt_code_hash, anonymous_session_hash, ip_hash, preferred_name, assessment_id, slot_id, issue_type,
           contact_email, contact_note, remark, status, abuse_status, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'new', 'clean', now(), now())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'new', 'clean', now(), now())`,
         [
           requestId,
           receiptCodeHash,
           anonymousSessionHash,
           ipHash,
+          normalizedPreferredName ?? null,
+          input.assessmentId ?? null,
           input.slotId,
-          input.issueType,
+          normalizedIssueType,
           normalizedEmail ?? null,
           normalizedContactNote ?? null,
           normalizedRemark ?? null
@@ -351,22 +367,29 @@ SELECT requests.id,
        requests.slot_id,
        slots.start_time AS slot_start_time,
        slots.end_time AS slot_end_time,
+       requests.preferred_name,
+       requests.assessment_id,
        requests.issue_type,
        requests.contact_email,
        requests.contact_note,
        requests.remark,
        requests.status,
        requests.abuse_status,
+       assessments.risk_level AS assessment_risk_level,
        requests.created_at,
        requests.updated_at,
        requests.withdrawn_at
 FROM support_requests requests
 INNER JOIN support_slots slots ON slots.id = requests.slot_id
+LEFT JOIN assessments ON assessments.id = requests.assessment_id
 `;
 
 function mapRequest(row: any) {
   return {
     id: row.id,
+    preferredName: row.preferred_name ?? undefined,
+    assessmentId: row.assessment_id ?? undefined,
+    assessmentRiskLevel: row.assessment_risk_level ?? undefined,
     slotId: row.slot_id,
     slotStartTime: row.slot_start_time,
     slotEndTime: row.slot_end_time,

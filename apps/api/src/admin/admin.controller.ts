@@ -5,6 +5,7 @@ import {
   updateSupportRequestSchema,
   updateSupportSlotSchema
 } from "@teacher-support/shared";
+import { AssessmentService } from "../assessment/assessment.service.js";
 import { SupportService } from "../support/support.service.js";
 import { AdminAuthGuard, type AdminRequest } from "./admin-auth.guard.js";
 import { AdminService } from "./admin.service.js";
@@ -13,6 +14,7 @@ import { AdminService } from "./admin.service.js";
 export class AdminController {
   constructor(
     private readonly admin: AdminService,
+    private readonly assessments: AssessmentService,
     private readonly support: SupportService
   ) {}
 
@@ -65,5 +67,11 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   listAuditLogs() {
     return this.admin.listAuditLogs();
+  }
+
+  @Get("assessment-stats")
+  @UseGuards(AdminAuthGuard)
+  listAssessmentStats() {
+    return this.assessments.getAdminStats();
   }
 }

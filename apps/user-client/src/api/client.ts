@@ -1,7 +1,17 @@
-import type { SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
+import type { AssessmentSummary, SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
 import { getAnonymousSessionId } from "../utils/session";
 
-const API_BASE_URL = "http://127.0.0.1:4000";
+function resolveApiBaseUrl() {
+  // H5 follows the current host so local/LAN access stays consistent.
+  // Mini Program keeps using the local API host configured for development.
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    return `${window.location.protocol}//${window.location.hostname}:4000`;
+  }
+
+  return "http://127.0.0.1:4000";
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH";
@@ -41,7 +51,8 @@ export function listSlots() {
 
 export function createRequest(payload: {
   slotId: string;
-  issueType: string;
+  preferredName?: string;
+  assessmentId?: string;
   contactEmail?: string;
   contactNote?: string;
   remark?: string;
@@ -50,6 +61,17 @@ export function createRequest(payload: {
     method: "POST",
     data: payload
   });
+}
+
+export function createAssessment(payload: { preferredName?: string; answers: Record<string, number> }) {
+  return request<AssessmentSummary>("/assessments", {
+    method: "POST",
+    data: payload
+  });
+}
+
+export function getAssessmentByReceipt(receiptCode: string) {
+  return request<AssessmentSummary>(`/assessments/${encodeURIComponent(receiptCode)}`);
 }
 
 export function getRequestByReceipt(receiptCode: string) {

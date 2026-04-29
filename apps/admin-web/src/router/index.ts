@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { getToken } from "../api/client";
+import AssessmentStatsPage from "../pages/AssessmentStatsPage.vue";
 import AuditLogsPage from "../pages/AuditLogsPage.vue";
 import LoginPage from "../pages/LoginPage.vue";
 import RequestsPage from "../pages/RequestsPage.vue";
@@ -10,6 +11,7 @@ export const router = createRouter({
   routes: [
     { path: "/login", component: LoginPage },
     { path: "/", component: RequestsPage },
+    { path: "/assessment-stats", component: AssessmentStatsPage },
     { path: "/slots", component: SlotsPage },
     { path: "/audit-logs", component: AuditLogsPage }
   ]

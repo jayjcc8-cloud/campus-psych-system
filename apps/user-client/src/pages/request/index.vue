@@ -8,21 +8,6 @@
 
     <view class="stack">
       <view class="card">
-        <text class="label">想谈的主题</text>
-        <view class="grid">
-          <view
-            v-for="item in issueTypes"
-            :key="item.value"
-            class="choice"
-            :class="{ 'choice-active': issueType === item.value }"
-            @click="issueType = item.value"
-          >
-            <text>{{ item.label }}</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="card">
         <text class="label">中心开放时段</text>
         <text v-if="loading" class="muted">正在同步时段...</text>
         <view class="stack">
@@ -40,6 +25,10 @@
       </view>
 
       <view class="card stack">
+        <view class="field">
+          <text class="label">希望被如何称呼（可选）</text>
+          <input v-model="preferredName" placeholder="可以填写昵称、代称或留空" />
+        </view>
         <view class="field">
           <text class="label">邮箱（可选）</text>
           <input v-model="contactEmail" placeholder="希望被联系时填写" />
@@ -62,14 +51,14 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { issueTypeLabels, supportIssueTypes, type SupportIssueType, type SupportSlot } from "@teacher-support/shared";
+import type { SupportSlot } from "@teacher-support/shared";
 import { createRequest, listSlots } from "../../api/client";
 import { saveLocalReceipt } from "../../utils/receipts";
 
-const issueTypes = supportIssueTypes.map((value) => ({ value, label: issueTypeLabels[value] }));
-const issueType = ref<SupportIssueType>("work_pressure");
 const slots = ref<SupportSlot[]>([]);
 const slotId = ref("");
+const preferredName = ref("");
+const assessmentId = ref("");
 const contactEmail = ref("");
 const contactNote = ref("");
 const remark = ref("");
@@ -108,14 +97,17 @@ async function submit() {
   try {
     const result = await createRequest({
       slotId: slotId.value,
-      issueType: issueType.value,
+      preferredName: preferredName.value,
+      assessmentId: assessmentId.value,
       contactEmail: contactEmail.value,
       contactNote: contactNote.value,
       remark: remark.value
     });
     saveLocalReceipt({
+      kind: "support_request",
       receiptCode: result.receiptCode,
-      requestId: result.id,
+      itemId: result.id,
+      title: preferredName.value || "匿名支持请求",
       createdAt: new Date().toISOString()
     });
     uni.redirectTo({ url: `/pages/receipt/index?code=${encodeURIComponent(result.receiptCode)}` });
@@ -125,6 +117,11 @@ async function submit() {
     submitting.value = false;
   }
 }
+
+const pages = getCurrentPages();
+const current = pages[pages.length - 1] as any;
+preferredName.value = decodeURIComponent(current?.options?.preferredName ?? "");
+assessmentId.value = decodeURIComponent(current?.options?.assessmentId ?? "");
 
 onMounted(loadSlots);
 </script>
