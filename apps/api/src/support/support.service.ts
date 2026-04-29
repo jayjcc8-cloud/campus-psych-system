@@ -382,6 +382,35 @@ export class SupportService {
     });
   }
 
+  async updateCounselorSlot(
+    counselorId: string,
+    id: string,
+    input: Partial<{ startTime: string; endTime: string; capacity: number; available: boolean }>
+  ) {
+    const current = await this.database.query("SELECT * FROM support_slots WHERE id = $1 AND counselor_id = $2", [id, counselorId]);
+    if (!current.rows[0]) {
+      return null;
+    }
+
+    const nextStartTime = input.startTime ?? current.rows[0].start_time;
+    const nextEndTime = input.endTime ?? current.rows[0].end_time;
+    this.assertSlotTime(nextStartTime, nextEndTime);
+
+    const result = await this.database.query(
+      `UPDATE support_slots
+       SET start_time = COALESCE($3, start_time),
+           end_time = COALESCE($4, end_time),
+           capacity = COALESCE($5, capacity),
+           available = COALESCE($6, available),
+           updated_at = now()
+       WHERE id = $1 AND counselor_id = $2
+       RETURNING id, counselor_id, start_time, end_time, capacity, available`,
+      [id, counselorId, input.startTime ?? null, input.endTime ?? null, input.capacity ?? null, input.available ?? null]
+    );
+
+    return result.rows[0] ? mapSlot(result.rows[0]) : null;
+  }
+
   async listEvents(requestId: string) {
     const result = await this.database.query(
       `SELECT id, actor_type, actor_id, event_type, detail, created_at

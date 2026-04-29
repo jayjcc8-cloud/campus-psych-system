@@ -41,6 +41,7 @@ export interface AdminTokenPayload {
   sub: string;
   username: string;
   role: string;
+  counselorId?: string;
   exp: number;
 }
 

@@ -25,6 +25,18 @@
       }
     },
     {
+      "path": "pages/counselor-login/index",
+      "style": {
+        "navigationBarTitleText": "咨询师登录"
+      }
+    },
+    {
+      "path": "pages/counselor-workspace/index",
+      "style": {
+        "navigationBarTitleText": "咨询师端"
+      }
+    },
+    {
       "path": "pages/assessment/index",
       "style": {
         "navigationBarTitleText": "心理测评"

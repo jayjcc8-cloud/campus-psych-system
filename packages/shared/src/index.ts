@@ -209,6 +209,17 @@ export const createSupportSlotSchema = z.object({
 
 export const updateSupportSlotSchema = createSupportSlotSchema.partial();
 
+export const counselorLoginSchema = z.object({
+  username: z.string().min(2).max(64),
+  password: z.string().min(8).max(128)
+});
+
+export const updateCounselorProfileSchema = z.object({
+  title: z.string().min(2).max(40),
+  intro: z.string().min(10).max(600),
+  specialties: z.array(z.string().min(1).max(24)).max(8)
+});
+
 export const updateSupportRequestSchema = z.object({
   status: z.enum(["viewed", "noted", "closed", "spam"])
 });

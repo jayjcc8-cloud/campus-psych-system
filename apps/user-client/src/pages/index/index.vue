@@ -30,6 +30,7 @@
         <button class="button-soft" @click="go('/pages/privacy/index')">隐私说明</button>
         <button class="button-soft" @click="go('/pages/emergency/index')">紧急支持</button>
       </view>
+      <button class="button-ghost" @click="go('/pages/counselor-login/index')">咨询师登录</button>
     </view>
   </view>
 </template>

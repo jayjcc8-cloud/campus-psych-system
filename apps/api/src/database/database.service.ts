@@ -52,6 +52,19 @@ export class DatabaseService implements OnModuleDestroy {
        ON CONFLICT (display_name) DO NOTHING`
     );
 
+    const counselorPasswordHash = hashPassword(process.env.COUNSELOR_PASSWORD ?? "Counselor@123456");
+    await this.pool.query(
+      `INSERT INTO counselor_accounts (id, counselor_id, username, password_hash, status, created_at, updated_at)
+       SELECT gen_random_uuid(), counselors.id, usernames.username, $1, 'active', now(), now()
+       FROM counselors
+       INNER JOIN (
+         VALUES ('周老师', 'zhou-laoshi'),
+                ('陈老师', 'chen-laoshi')
+       ) AS usernames(display_name, username) ON usernames.display_name = counselors.display_name
+       ON CONFLICT (username) DO NOTHING`,
+      [counselorPasswordHash]
+    );
+
     const defaultCounselor = await this.pool.query<{ id: string }>(
       "SELECT id FROM counselors WHERE status = 'approved' ORDER BY sort_order ASC, created_at ASC LIMIT 1"
     );
@@ -103,6 +116,16 @@ CREATE TABLE IF NOT EXISTS support_slots (
   end_time TIMESTAMPTZ NOT NULL,
   capacity INTEGER NOT NULL CHECK (capacity > 0),
   available BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS counselor_accounts (
+  id UUID PRIMARY KEY,
+  counselor_id UUID NOT NULL REFERENCES counselors(id) ON DELETE CASCADE,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
