@@ -109,6 +109,7 @@ onMounted(load);
         <article v-for="slot in upcomingSlots" :key="slot.id" class="slot-card">
           <div>
             <strong>{{ new Date(slot.startTime).toLocaleString() }}</strong>
+            <p class="muted">{{ slot.counselorName || "未关联咨询师" }}</p>
             <p class="muted">至 {{ new Date(slot.endTime).toLocaleString() }}</p>
             <p class="muted">已占用 {{ slot.activeCount ?? 0 }} / {{ slot.capacity }}</p>
           </div>
@@ -136,6 +137,7 @@ onMounted(load);
         <article v-for="slot in historySlots" :key="slot.id" class="slot-card muted-card">
           <div>
             <strong>{{ new Date(slot.startTime).toLocaleString() }}</strong>
+            <p class="muted">{{ slot.counselorName || "未关联咨询师" }}</p>
             <p class="muted">容量 {{ slot.capacity }}，已占用 {{ slot.activeCount ?? 0 }}</p>
           </div>
           <span class="pill">历史</span>

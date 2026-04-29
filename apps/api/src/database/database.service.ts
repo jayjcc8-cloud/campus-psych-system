@@ -44,17 +44,35 @@ export class DatabaseService implements OnModuleDestroy {
       [passwordHash]
     );
 
+    await this.pool.query(
+      `INSERT INTO counselors (id, display_name, title, intro, specialties, status, sort_order, created_at, updated_at)
+       VALUES
+       (gen_random_uuid(), '周老师', '心理咨询师', '专注于以稳定、尊重的方式陪伴教师面对压力、关系和阶段变化。', ARRAY['压力支持', '情绪困扰', '关系议题'], 'approved', 1, now(), now()),
+       (gen_random_uuid(), '陈老师', '心理支持顾问', '擅长和来访者一起梳理近期困扰，帮助找到更可承受的节奏。', ARRAY['睡眠状态', '焦虑困扰', '职业阶段'], 'approved', 2, now(), now())
+       ON CONFLICT (display_name) DO NOTHING`
+    );
+
+    const defaultCounselor = await this.pool.query<{ id: string }>(
+      "SELECT id FROM counselors WHERE status = 'approved' ORDER BY sort_order ASC, created_at ASC LIMIT 1"
+    );
+    const defaultCounselorId = defaultCounselor.rows[0]?.id;
+    if (defaultCounselorId) {
+      await this.pool.query("UPDATE support_slots SET counselor_id = $1 WHERE counselor_id IS NULL", [defaultCounselorId]);
+      await this.pool.query("UPDATE support_requests SET counselor_id = $1 WHERE counselor_id IS NULL", [defaultCounselorId]);
+    }
+
     const count = await this.pool.query<{ count: string }>("SELECT COUNT(*) AS count FROM support_slots");
     if (Number(count.rows[0]?.count ?? 0) > 0) {
       return;
     }
 
     await this.pool.query(
-      `INSERT INTO support_slots (id, start_time, end_time, capacity, available, created_at, updated_at)
+      `INSERT INTO support_slots (id, counselor_id, start_time, end_time, capacity, available, created_at, updated_at)
        VALUES
-       (gen_random_uuid(), now() + interval '1 day', now() + interval '1 day 1 hour', 4, true, now(), now()),
-       (gen_random_uuid(), now() + interval '2 days', now() + interval '2 days 1 hour', 4, true, now(), now()),
-       (gen_random_uuid(), now() + interval '3 days', now() + interval '3 days 1 hour', 4, true, now(), now())`
+       (gen_random_uuid(), $1, now() + interval '1 day', now() + interval '1 day 1 hour', 4, true, now(), now()),
+       (gen_random_uuid(), $1, now() + interval '2 days', now() + interval '2 days 1 hour', 4, true, now(), now()),
+       (gen_random_uuid(), $1, now() + interval '3 days', now() + interval '3 days 1 hour', 4, true, now(), now())`,
+      [defaultCounselorId]
     );
   }
 
@@ -66,8 +84,21 @@ export class DatabaseService implements OnModuleDestroy {
 const schemaSql = `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+CREATE TABLE IF NOT EXISTS counselors (
+  id UUID PRIMARY KEY,
+  display_name TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  intro TEXT NOT NULL,
+  specialties TEXT[] NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL CHECK (status IN ('draft', 'pending_review', 'approved', 'suspended')),
+  sort_order INTEGER NOT NULL DEFAULT 100,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS support_slots (
   id UUID PRIMARY KEY,
+  counselor_id UUID REFERENCES counselors(id),
   start_time TIMESTAMPTZ NOT NULL,
   end_time TIMESTAMPTZ NOT NULL,
   capacity INTEGER NOT NULL CHECK (capacity > 0),
@@ -95,6 +126,9 @@ CREATE TABLE IF NOT EXISTS assessments (
 CREATE INDEX IF NOT EXISTS idx_assessments_session_created ON assessments(anonymous_session_hash, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_assessments_risk_created ON assessments(risk_level, created_at DESC);
 
+ALTER TABLE support_slots ADD COLUMN IF NOT EXISTS counselor_id UUID REFERENCES counselors(id);
+CREATE INDEX IF NOT EXISTS idx_support_slots_counselor_time ON support_slots(counselor_id, start_time);
+
 CREATE TABLE IF NOT EXISTS support_requests (
   id UUID PRIMARY KEY,
   receipt_code_hash TEXT NOT NULL UNIQUE,
@@ -102,6 +136,7 @@ CREATE TABLE IF NOT EXISTS support_requests (
   ip_hash TEXT NOT NULL,
   preferred_name TEXT,
   assessment_id UUID REFERENCES assessments(id),
+  counselor_id UUID REFERENCES counselors(id),
   slot_id UUID NOT NULL REFERENCES support_slots(id),
   issue_type TEXT NOT NULL,
   contact_email TEXT,
@@ -120,6 +155,8 @@ CREATE INDEX IF NOT EXISTS idx_support_requests_ip_created ON support_requests(i
 
 ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS preferred_name TEXT;
 ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS assessment_id UUID REFERENCES assessments(id);
+ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS counselor_id UUID REFERENCES counselors(id);
+CREATE INDEX IF NOT EXISTS idx_support_requests_counselor_status ON support_requests(counselor_id, status);
 
 CREATE TABLE IF NOT EXISTS support_request_events (
   id UUID PRIMARY KEY,

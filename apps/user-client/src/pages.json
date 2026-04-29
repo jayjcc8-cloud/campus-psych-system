@@ -13,6 +13,18 @@
       }
     },
     {
+      "path": "pages/counselors/index",
+      "style": {
+        "navigationBarTitleText": "选择咨询师"
+      }
+    },
+    {
+      "path": "pages/counselor-detail/index",
+      "style": {
+        "navigationBarTitleText": "咨询师详情"
+      }
+    },
+    {
       "path": "pages/assessment/index",
       "style": {
         "navigationBarTitleText": "心理测评"
@@ -65,8 +77,8 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/request/index",
-        "text": "支持"
+        "pagePath": "pages/counselors/index",
+        "text": "咨询师"
       },
       {
         "pagePath": "pages/requests/index",

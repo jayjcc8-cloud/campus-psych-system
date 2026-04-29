@@ -94,7 +94,7 @@ function go(url: string) {
 
 function goToRequest() {
   const query = report.value ? `?assessmentId=${encodeURIComponent(report.value.id)}&preferredName=${encodeURIComponent(report.value.preferredName || "")}` : "";
-  uni.navigateTo({ url: `/pages/request/index${query}` });
+  uni.navigateTo({ url: `/pages/counselors/index${query}` });
 }
 
 if (code) {

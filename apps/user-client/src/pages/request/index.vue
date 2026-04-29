@@ -2,13 +2,13 @@
   <view class="page">
     <view class="hero">
       <text class="eyebrow">支持请求</text>
-      <text class="title">选择一个你愿意被接住的时间</text>
+      <text class="title">{{ counselorName ? `向${counselorName}提交匿名请求` : "提交匿名支持请求" }}</text>
       <text class="copy">提交后会生成匿名回执码。请妥善保存，用于查看状态或撤回。</text>
     </view>
 
     <view class="stack">
       <view class="card">
-        <text class="label">中心开放时段</text>
+        <text class="label">已选时间</text>
         <text v-if="loading" class="muted">正在同步时段...</text>
         <view class="stack">
           <view
@@ -52,10 +52,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import type { SupportSlot } from "@teacher-support/shared";
-import { createRequest, listSlots } from "../../api/client";
+import { createRequest, getCounselor, listCounselorSlots } from "../../api/client";
 import { saveLocalReceipt } from "../../utils/receipts";
 
 const slots = ref<SupportSlot[]>([]);
+const counselorId = ref("");
+const counselorName = ref("");
 const slotId = ref("");
 const preferredName = ref("");
 const assessmentId = ref("");
@@ -71,10 +73,19 @@ function formatTime(value: string) {
 }
 
 async function loadSlots() {
+  if (!counselorId.value) {
+    error.value = "请先选择一位咨询师。";
+    return;
+  }
+
   loading.value = true;
   try {
-    slots.value = await listSlots();
-    slotId.value = slots.value[0]?.id ?? "";
+    const [profile, availableSlots] = await Promise.all([getCounselor(counselorId.value), listCounselorSlots(counselorId.value)]);
+    counselorName.value = profile.displayName;
+    slots.value = availableSlots;
+    if (!slotId.value || !availableSlots.some((slot) => slot.id === slotId.value)) {
+      slotId.value = availableSlots[0]?.id ?? "";
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : "时段暂时不可用";
   } finally {
@@ -84,8 +95,12 @@ async function loadSlots() {
 
 async function submit() {
   error.value = "";
+  if (!counselorId.value) {
+    error.value = "请先选择一位咨询师。";
+    return;
+  }
   if (!slotId.value) {
-    error.value = "请选择一个中心开放时段。";
+    error.value = "请选择一个开放时段。";
     return;
   }
   if (contactEmail.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.value)) {
@@ -96,6 +111,7 @@ async function submit() {
   submitting.value = true;
   try {
     const result = await createRequest({
+      counselorId: counselorId.value,
       slotId: slotId.value,
       preferredName: preferredName.value,
       assessmentId: assessmentId.value,
@@ -120,6 +136,8 @@ async function submit() {
 
 const pages = getCurrentPages();
 const current = pages[pages.length - 1] as any;
+counselorId.value = decodeURIComponent(current?.options?.counselorId ?? "");
+slotId.value = decodeURIComponent(current?.options?.slotId ?? "");
 preferredName.value = decodeURIComponent(current?.options?.preferredName ?? "");
 assessmentId.value = decodeURIComponent(current?.options?.assessmentId ?? "");
 

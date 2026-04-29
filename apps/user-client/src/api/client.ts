@@ -1,4 +1,4 @@
-import type { AssessmentSummary, SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
+import type { AssessmentSummary, CounselorProfile, SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
 import { getAnonymousSessionId } from "../utils/session";
 
 function resolveApiBaseUrl() {
@@ -49,7 +49,20 @@ export function listSlots() {
   return request<SupportSlot[]>("/support/slots");
 }
 
+export function listCounselors() {
+  return request<CounselorProfile[]>("/support/counselors");
+}
+
+export function getCounselor(id: string) {
+  return request<CounselorProfile>(`/support/counselors/${encodeURIComponent(id)}`);
+}
+
+export function listCounselorSlots(id: string) {
+  return request<SupportSlot[]>(`/support/counselors/${encodeURIComponent(id)}/slots`);
+}
+
 export function createRequest(payload: {
+  counselorId: string;
   slotId: string;
   preferredName?: string;
   assessmentId?: string;

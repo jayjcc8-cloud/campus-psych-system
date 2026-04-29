@@ -107,12 +107,26 @@ export const assessmentQuestions: AssessmentQuestion[] = [
 
 export interface SupportSlot {
   id: string;
+  counselorId?: string;
+  counselorName?: string;
   startTime: string;
   endTime: string;
   capacity: number;
   remainingCapacity?: number;
   available: boolean;
   activeCount?: number;
+}
+
+export interface CounselorProfile {
+  id: string;
+  displayName: string;
+  title: string;
+  intro: string;
+  specialties: string[];
+  status: "draft" | "pending_review" | "approved" | "suspended";
+  nextAvailableTime?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuditLogEntry {
@@ -153,6 +167,8 @@ export interface SupportRequestSummary {
   preferredName?: string;
   assessmentId?: string;
   assessmentRiskLevel?: AssessmentRiskLevel;
+  counselorId?: string;
+  counselorName?: string;
   slotId: string;
   slotStartTime?: string;
   slotEndTime?: string;
@@ -168,6 +184,7 @@ export interface SupportRequestSummary {
 }
 
 export const createSupportRequestSchema = z.object({
+  counselorId: z.string().uuid(),
   slotId: z.string().min(1),
   issueType: z.enum(supportIssueTypes).optional(),
   preferredName: z.string().max(40).optional().or(z.literal("")),
@@ -183,6 +200,7 @@ export const createAssessmentSchema = z.object({
 });
 
 export const createSupportSlotSchema = z.object({
+  counselorId: z.string().uuid().optional(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   capacity: z.number().int().min(1).max(20),

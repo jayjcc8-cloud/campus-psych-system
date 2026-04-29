@@ -3,10 +3,12 @@ import type { AbuseStatus, SupportIssueType, SupportRequestStatus } from "@teach
 import { normalizeOptional } from "@teacher-support/shared";
 import { contentFingerprint, createId, createReceiptCode, hashReceiptCode, stableHash } from "../common/security.js";
 import { DatabaseService } from "../database/database.service.js";
+import type { PoolClient } from "pg";
 
 const activeStatuses: SupportRequestStatus[] = ["new", "viewed", "noted"];
 
 interface CreateRequestInput {
+  counselorId: string;
   slotId: string;
   issueType?: SupportIssueType;
   preferredName?: string;
@@ -22,9 +24,61 @@ interface CreateRequestInput {
 export class SupportService {
   constructor(private readonly database: DatabaseService) {}
 
-  async listSlots() {
+  async listCounselors() {
+    const result = await this.database.query(
+      `SELECT counselors.id,
+              counselors.display_name,
+              counselors.title,
+              counselors.intro,
+              counselors.specialties,
+              counselors.status,
+              counselors.created_at,
+              counselors.updated_at,
+              MIN(slots.start_time) FILTER (
+                WHERE slots.available = true
+                  AND slots.start_time > now()
+                  AND COALESCE(slot_counts.active_count, 0) < slots.capacity
+              ) AS next_available_time
+       FROM counselors
+       LEFT JOIN support_slots slots ON slots.counselor_id = counselors.id
+       LEFT JOIN (
+         SELECT slots.id,
+                COUNT(requests.id) FILTER (WHERE requests.status = ANY($1)) AS active_count
+         FROM support_slots slots
+         LEFT JOIN support_requests requests ON requests.slot_id = slots.id
+         GROUP BY slots.id
+       ) slot_counts ON slot_counts.id = slots.id
+       WHERE counselors.status = 'approved'
+       GROUP BY counselors.id
+       ORDER BY counselors.sort_order ASC, counselors.created_at ASC`,
+      [activeStatuses]
+    );
+
+    return result.rows.map(mapCounselor);
+  }
+
+  async getCounselor(id: string) {
+    const result = await this.database.query(
+      `SELECT id, display_name, title, intro, specialties, status, created_at, updated_at
+       FROM counselors
+       WHERE id = $1 AND status = 'approved'`,
+      [id]
+    );
+
+    return result.rows[0] ? mapCounselor(result.rows[0]) : null;
+  }
+
+  async listSlots(counselorId?: string) {
+    const params: unknown[] = [activeStatuses];
+    const counselorWhere = counselorId ? " AND slots.counselor_id = $2" : "";
+    if (counselorId) {
+      params.push(counselorId);
+    }
+
     const result = await this.database.query<{
       id: string;
+      counselor_id: string;
+      counselor_name: string;
       start_time: string;
       end_time: string;
       capacity: number;
@@ -32,22 +86,27 @@ export class SupportService {
       active_count: string;
     }>(
       `SELECT slots.id,
+              slots.counselor_id,
+              counselors.display_name AS counselor_name,
               slots.start_time,
               slots.end_time,
               slots.capacity,
               slots.available,
               COUNT(requests.id) FILTER (WHERE requests.status = ANY($1)) AS active_count
        FROM support_slots slots
+       INNER JOIN counselors ON counselors.id = slots.counselor_id AND counselors.status = 'approved'
        LEFT JOIN support_requests requests ON requests.slot_id = slots.id
-       WHERE slots.available = true AND slots.start_time > now()
-       GROUP BY slots.id
+       WHERE slots.available = true AND slots.start_time > now()${counselorWhere}
+       GROUP BY slots.id, counselors.display_name
        ORDER BY slots.start_time ASC`,
-      [activeStatuses]
+      params
     );
 
     return result.rows
       .map((row) => ({
         id: row.id,
+        counselorId: row.counselor_id,
+        counselorName: row.counselor_name,
         startTime: row.start_time,
         endTime: row.end_time,
         capacity: row.capacity,
@@ -60,6 +119,8 @@ export class SupportService {
   async listAdminSlots() {
     const result = await this.database.query<{
       id: string;
+      counselor_id: string;
+      counselor_name: string;
       start_time: string;
       end_time: string;
       capacity: number;
@@ -67,20 +128,25 @@ export class SupportService {
       active_count: string;
     }>(
       `SELECT slots.id,
+              slots.counselor_id,
+              counselors.display_name AS counselor_name,
               slots.start_time,
               slots.end_time,
               slots.capacity,
               slots.available,
               COUNT(requests.id) FILTER (WHERE requests.status = ANY($1)) AS active_count
        FROM support_slots slots
+       LEFT JOIN counselors ON counselors.id = slots.counselor_id
        LEFT JOIN support_requests requests ON requests.slot_id = slots.id
-       GROUP BY slots.id
+       GROUP BY slots.id, counselors.display_name
        ORDER BY slots.start_time DESC`,
       [activeStatuses]
     );
 
     return result.rows.map((row) => ({
       id: row.id,
+      counselorId: row.counselor_id,
+      counselorName: row.counselor_name,
       startTime: row.start_time,
       endTime: row.end_time,
       capacity: row.capacity,
@@ -98,7 +164,7 @@ export class SupportService {
     const normalizedEmail = normalizeOptional(input.contactEmail);
     const normalizedContactNote = normalizeOptional(input.contactNote);
     const normalizedIssueType = input.issueType ?? "other";
-    const fingerprint = contentFingerprint(`${input.slotId}:${normalizedIssueType}:${normalizedRemark ?? ""}`);
+    const fingerprint = contentFingerprint(`${input.counselorId}:${input.slotId}:${normalizedIssueType}:${normalizedRemark ?? ""}`);
 
     await this.assertRateLimit({ anonymousSessionHash, ipHash, fingerprint });
 
@@ -121,10 +187,14 @@ export class SupportService {
         `SELECT slots.capacity,
                 COUNT(requests.id) FILTER (WHERE requests.status = ANY($2)) AS active_count
          FROM support_slots slots
+         INNER JOIN counselors ON counselors.id = slots.counselor_id AND counselors.status = 'approved'
          LEFT JOIN support_requests requests ON requests.slot_id = slots.id
-         WHERE slots.id = $1 AND slots.available = true AND slots.start_time > now()
+         WHERE slots.id = $1
+           AND slots.counselor_id = $3
+           AND slots.available = true
+           AND slots.start_time > now()
          GROUP BY slots.id`,
-        [input.slotId, activeStatuses]
+        [input.slotId, activeStatuses, input.counselorId]
       );
 
       if (!slot.rows[0]) {
@@ -137,9 +207,9 @@ export class SupportService {
 
       await client.query(
         `INSERT INTO support_requests (
-          id, receipt_code_hash, anonymous_session_hash, ip_hash, preferred_name, assessment_id, slot_id, issue_type,
+          id, receipt_code_hash, anonymous_session_hash, ip_hash, preferred_name, assessment_id, counselor_id, slot_id, issue_type,
           contact_email, contact_note, remark, status, abuse_status, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'new', 'clean', now(), now())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'new', 'clean', now(), now())`,
         [
           requestId,
           receiptCodeHash,
@@ -147,6 +217,7 @@ export class SupportService {
           ipHash,
           normalizedPreferredName ?? null,
           input.assessmentId ?? null,
+          input.counselorId,
           input.slotId,
           normalizedIssueType,
           normalizedEmail ?? null,
@@ -244,16 +315,20 @@ export class SupportService {
     return result.rows[0] ? mapRequest(result.rows[0]) : null;
   }
 
-  async createSlot(input: { startTime: string; endTime: string; capacity: number; available?: boolean }, adminUserId?: string) {
+  async createSlot(
+    input: { counselorId?: string; startTime: string; endTime: string; capacity: number; available?: boolean },
+    adminUserId?: string
+  ) {
     this.assertSlotTime(input.startTime, input.endTime);
 
     const id = createId();
     return this.database.transaction(async (client) => {
+      const counselorId = input.counselorId ?? (await this.getDefaultCounselorId(client));
       const result = await client.query(
-        `INSERT INTO support_slots (id, start_time, end_time, capacity, available, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, now(), now())
-         RETURNING id, start_time, end_time, capacity, available`,
-        [id, input.startTime, input.endTime, input.capacity, input.available ?? true]
+        `INSERT INTO support_slots (id, counselor_id, start_time, end_time, capacity, available, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+         RETURNING id, counselor_id, start_time, end_time, capacity, available`,
+        [id, counselorId, input.startTime, input.endTime, input.capacity, input.available ?? true]
       );
 
       if (adminUserId) {
@@ -360,10 +435,23 @@ export class SupportService {
       throw new BadRequestException("结束时间需要晚于开始时间。");
     }
   }
+
+  private async getDefaultCounselorId(client: PoolClient) {
+    const result = await client.query<{ id: string }>(
+      "SELECT id FROM counselors WHERE status = 'approved' ORDER BY sort_order ASC, created_at ASC LIMIT 1"
+    );
+    const counselorId = result.rows[0]?.id;
+    if (!counselorId) {
+      throw new BadRequestException("当前没有可用咨询师，请先完成咨询师资料配置。");
+    }
+    return counselorId;
+  }
 }
 
 const requestSelectSql = `
 SELECT requests.id,
+       requests.counselor_id,
+       counselors.display_name AS counselor_name,
        requests.slot_id,
        slots.start_time AS slot_start_time,
        slots.end_time AS slot_end_time,
@@ -382,6 +470,7 @@ SELECT requests.id,
 FROM support_requests requests
 INNER JOIN support_slots slots ON slots.id = requests.slot_id
 LEFT JOIN assessments ON assessments.id = requests.assessment_id
+LEFT JOIN counselors ON counselors.id = requests.counselor_id
 `;
 
 function mapRequest(row: any) {
@@ -390,6 +479,8 @@ function mapRequest(row: any) {
     preferredName: row.preferred_name ?? undefined,
     assessmentId: row.assessment_id ?? undefined,
     assessmentRiskLevel: row.assessment_risk_level ?? undefined,
+    counselorId: row.counselor_id ?? undefined,
+    counselorName: row.counselor_name ?? undefined,
     slotId: row.slot_id,
     slotStartTime: row.slot_start_time,
     slotEndTime: row.slot_end_time,
@@ -408,9 +499,25 @@ function mapRequest(row: any) {
 function mapSlot(row: any) {
   return {
     id: row.id,
+    counselorId: row.counselor_id ?? undefined,
+    counselorName: row.counselor_name ?? undefined,
     startTime: row.start_time,
     endTime: row.end_time,
     capacity: row.capacity,
     available: row.available
+  };
+}
+
+function mapCounselor(row: any) {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    title: row.title,
+    intro: row.intro,
+    specialties: row.specialties ?? [],
+    status: row.status,
+    nextAvailableTime: row.next_available_time ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }

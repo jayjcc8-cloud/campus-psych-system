@@ -83,6 +83,7 @@ onMounted(load);
             <div>
               <p class="eyebrow">{{ item.preferredName || "匿名支持请求" }}</p>
               <h3>{{ requestStatusLabels[item.status] }}</h3>
+              <p>{{ item.counselorName || "未关联咨询师" }}</p>
               <p>{{ new Date(item.slotStartTime || item.createdAt).toLocaleString() }}</p>
             </div>
             <span class="pill">{{ item.abuseStatus === "spam" ? "垃圾" : "匿名" }}</span>
@@ -96,6 +97,7 @@ onMounted(load);
         <p class="eyebrow">请求详情</p>
         <h2>{{ selected.preferredName || "匿名支持请求" }}</h2>
         <p class="muted">请求编号 {{ selected.id }}</p>
+        <p class="muted">咨询师：{{ selected.counselorName || "未关联" }}</p>
         <p v-if="selected.assessmentRiskLevel" class="muted">关联测评：{{ assessmentRiskLabels[selected.assessmentRiskLevel] }}</p>
         <p>{{ selected.remark || "未填写补充说明" }}</p>
         <div class="contact-box">

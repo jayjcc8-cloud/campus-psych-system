@@ -66,6 +66,28 @@ page {
   gap: 20rpx;
 }
 
+.row-between {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.mini-tag {
+  border-radius: 999rpx;
+  background: #eef7f4;
+  color: #315b55;
+  padding: 8rpx 14rpx;
+  font-size: 22rpx;
+}
+
 .button,
 button {
   border: 0;

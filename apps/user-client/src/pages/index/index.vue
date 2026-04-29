@@ -8,7 +8,7 @@
       </text>
       <view class="stack">
         <button class="button-soft" @click="go('/pages/assessment/index')">先做一份心理测评</button>
-        <button @click="go('/pages/request/index')">提交支持请求</button>
+        <button @click="go('/pages/counselors/index')">选择咨询师</button>
         <button class="button-soft" @click="go('/pages/requests/index')">查看我的回执</button>
       </view>
     </view>
