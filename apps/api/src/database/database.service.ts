@@ -39,7 +39,7 @@ export class DatabaseService implements OnModuleDestroy {
 
     await this.pool.query(
       `INSERT INTO admin_users (id, username, display_name, password_hash, role, status, created_at, updated_at)
-       VALUES (gen_random_uuid(), 'center-admin', '心理服务中心管理员', $1, 'center_admin', 'active', now(), now())
+       VALUES (gen_random_uuid(), 'center-admin', '支持后台管理员', $1, 'center_admin', 'active', now(), now())
        ON CONFLICT (username) DO NOTHING`,
       [passwordHash]
     );
@@ -47,9 +47,16 @@ export class DatabaseService implements OnModuleDestroy {
     await this.pool.query(
       `INSERT INTO counselors (id, display_name, title, intro, specialties, status, sort_order, created_at, updated_at)
        VALUES
-       (gen_random_uuid(), '周老师', '心理咨询师', '专注于以稳定、尊重的方式陪伴教师面对压力、关系和阶段变化。', ARRAY['压力支持', '情绪困扰', '关系议题'], 'approved', 1, now(), now()),
+       (gen_random_uuid(), '周老师', '心理咨询师', '专注于以稳定、尊重的方式陪伴用户面对压力、关系和阶段变化。', ARRAY['压力支持', '情绪困扰', '关系议题'], 'approved', 1, now(), now()),
        (gen_random_uuid(), '陈老师', '心理支持顾问', '擅长和来访者一起梳理近期困扰，帮助找到更可承受的节奏。', ARRAY['睡眠状态', '焦虑困扰', '职业阶段'], 'approved', 2, now(), now())
        ON CONFLICT (display_name) DO NOTHING`
+    );
+    await this.pool.query(
+      `UPDATE counselors
+       SET intro = '专注于以稳定、尊重的方式陪伴用户面对压力、关系和阶段变化。',
+           updated_at = now()
+       WHERE display_name = '周老师'
+         AND intro NOT LIKE '%用户%'`
     );
 
     const counselorPasswordHash = hashPassword(process.env.COUNSELOR_PASSWORD ?? "Counselor@123456");
@@ -74,8 +81,10 @@ export class DatabaseService implements OnModuleDestroy {
       await this.pool.query("UPDATE support_requests SET counselor_id = $1 WHERE counselor_id IS NULL", [defaultCounselorId]);
     }
 
-    const count = await this.pool.query<{ count: string }>("SELECT COUNT(*) AS count FROM support_slots");
-    if (Number(count.rows[0]?.count ?? 0) > 0) {
+    const futureCount = await this.pool.query<{ count: string }>(
+      "SELECT COUNT(*) AS count FROM support_slots WHERE available = true AND start_time > now()"
+    );
+    if (Number(futureCount.rows[0]?.count ?? 0) > 0) {
       return;
     }
 
@@ -125,10 +134,39 @@ CREATE TABLE IF NOT EXISTS counselor_accounts (
   counselor_id UUID NOT NULL REFERENCES counselors(id) ON DELETE CASCADE,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  legal_name TEXT,
+  staff_id TEXT,
+  organization TEXT,
+  work_email TEXT,
   status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE counselor_accounts ADD COLUMN IF NOT EXISTS legal_name TEXT;
+ALTER TABLE counselor_accounts ADD COLUMN IF NOT EXISTS staff_id TEXT;
+ALTER TABLE counselor_accounts ADD COLUMN IF NOT EXISTS organization TEXT;
+ALTER TABLE counselor_accounts ADD COLUMN IF NOT EXISTS work_email TEXT;
+
+CREATE TABLE IF NOT EXISTS privacy_user_accounts (
+  id UUID PRIMARY KEY,
+  privacy_id TEXT UNIQUE,
+  username TEXT NOT NULL UNIQUE,
+  preferred_name TEXT NOT NULL,
+  recovery_email TEXT,
+  password_hash TEXT NOT NULL,
+  recovery_phrase_hash TEXT,
+  status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+ALTER TABLE privacy_user_accounts ADD COLUMN IF NOT EXISTS privacy_id TEXT UNIQUE;
+ALTER TABLE privacy_user_accounts ADD COLUMN IF NOT EXISTS recovery_phrase_hash TEXT;
+UPDATE privacy_user_accounts
+SET privacy_id = 'U-' || upper(substr(replace(id::text, '-', ''), 1, 4)) || '-' || upper(substr(replace(id::text, '-', ''), 5, 4))
+WHERE privacy_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_privacy_user_accounts_privacy_id ON privacy_user_accounts(privacy_id);
 
 CREATE TABLE IF NOT EXISTS assessments (
   id UUID PRIMARY KEY,

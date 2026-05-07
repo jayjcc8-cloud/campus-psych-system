@@ -43,6 +43,7 @@
 import { reactive, ref } from "vue";
 import { assessmentQuestions } from "@teacher-support/shared";
 import { createAssessment } from "../../api/client";
+import { requireUserLogin } from "../../utils/auth";
 import { saveLocalReceipt } from "../../utils/receipts";
 
 const preferredName = ref("");
@@ -79,6 +80,8 @@ function setAnswer(questionId: string, value: number) {
 
 async function submit() {
   error.value = "";
+  if (!requireUserLogin("提交测评结果")) return;
+
   if (Object.values(answers).some((value) => value < 0)) {
     error.value = "请完成全部题目后再提交。";
     return;

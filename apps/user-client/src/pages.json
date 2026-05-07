@@ -1,9 +1,33 @@
 {
   "pages": [
     {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/user-register/index",
+      "style": {
+        "navigationBarTitleText": "创建隐私账号"
+      }
+    },
+    {
+      "path": "pages/account-recovery/index",
+      "style": {
+        "navigationBarTitleText": "账号恢复"
+      }
+    },
+    {
+      "path": "pages/counselor-register/index",
+      "style": {
+        "navigationBarTitleText": "咨询师入驻申请"
+      }
+    },
+    {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "教师支持"
+        "navigationBarTitleText": "心理支持"
       }
     },
     {
@@ -27,13 +51,49 @@
     {
       "path": "pages/counselor-login/index",
       "style": {
-        "navigationBarTitleText": "咨询师登录"
+        "navigationBarTitleText": "身份登录"
       }
     },
     {
       "path": "pages/counselor-workspace/index",
       "style": {
-        "navigationBarTitleText": "咨询师端"
+        "navigationBarTitleText": "工作台"
+      }
+    },
+    {
+      "path": "pages/counselor-requests/index",
+      "style": {
+        "navigationBarTitleText": "请求"
+      }
+    },
+    {
+      "path": "pages/counselor-schedule/index",
+      "style": {
+        "navigationBarTitleText": "排期"
+      }
+    },
+    {
+      "path": "pages/counselor-profile/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/counselor-profile-edit/index",
+      "style": {
+        "navigationBarTitleText": "公开资料"
+      }
+    },
+    {
+      "path": "pages/counselor-slot-create/index",
+      "style": {
+        "navigationBarTitleText": "新增时段"
+      }
+    },
+    {
+      "path": "pages/counselor-account/index",
+      "style": {
+        "navigationBarTitleText": "账号与安全"
       }
     },
     {
@@ -57,7 +117,13 @@
     {
       "path": "pages/requests/index",
       "style": {
-        "navigationBarTitleText": "我的请求"
+        "navigationBarTitleText": "我的预约"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "我的"
       }
     },
     {
@@ -89,18 +155,18 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/counselors/index",
-        "text": "咨询师"
+        "pagePath": "pages/requests/index",
+        "text": "我的预约"
       },
       {
-        "pagePath": "pages/requests/index",
-        "text": "我的回执"
+        "pagePath": "pages/profile/index",
+        "text": "我的"
       }
     ]
   },
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "教师匿名心理支持",
+    "navigationBarTitleText": "心理支持",
     "navigationBarBackgroundColor": "#F4FAF7",
     "backgroundColor": "#F4FAF7"
   }

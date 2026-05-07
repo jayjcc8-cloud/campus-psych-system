@@ -163,6 +163,7 @@ export class SupportService {
     const normalizedRemark = normalizeOptional(input.remark);
     const normalizedEmail = normalizeOptional(input.contactEmail);
     const normalizedContactNote = normalizeOptional(input.contactNote);
+    const normalizedAssessmentId = normalizeOptional(input.assessmentId);
     const normalizedIssueType = input.issueType ?? "other";
     const fingerprint = contentFingerprint(`${input.counselorId}:${input.slotId}:${normalizedIssueType}:${normalizedRemark ?? ""}`);
 
@@ -173,10 +174,10 @@ export class SupportService {
     const requestId = createId();
 
     await this.database.transaction(async (client) => {
-      if (input.assessmentId) {
+      if (normalizedAssessmentId) {
         const assessment = await client.query<{ id: string }>(
           "SELECT id FROM assessments WHERE id = $1 AND anonymous_session_hash = $2",
-          [input.assessmentId, anonymousSessionHash]
+          [normalizedAssessmentId, anonymousSessionHash]
         );
         if (!assessment.rows[0]) {
           throw new BadRequestException("测评结果暂时无法关联，请重新提交测评后再试。");
@@ -216,7 +217,7 @@ export class SupportService {
           anonymousSessionHash,
           ipHash,
           normalizedPreferredName ?? null,
-          input.assessmentId ?? null,
+          normalizedAssessmentId ?? null,
           input.counselorId,
           input.slotId,
           normalizedIssueType,

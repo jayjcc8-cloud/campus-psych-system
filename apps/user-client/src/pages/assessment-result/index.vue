@@ -38,7 +38,7 @@
         <text class="copy">你可以先给自己留出一点稳定的支持时间，也可以带着这份结果再提交支持请求。</text>
         <button @click="goToRequest">带着这份结果继续求助</button>
         <button class="button-soft" @click="go('/pages/emergency/index')">查看紧急支持资源</button>
-        <button class="button-ghost" @click="go('/pages/requests/index')">回到我的回执</button>
+        <button class="button-ghost" @click="go('/pages/requests/index')">回到我的</button>
       </view>
     </view>
 
@@ -53,6 +53,7 @@
 import { computed, ref } from "vue";
 import { assessmentRiskLabels, type AssessmentSummary } from "@teacher-support/shared";
 import { getAssessmentByReceipt } from "../../api/client";
+import { openPage } from "../../utils/navigation";
 
 const pages = getCurrentPages();
 const current = pages[pages.length - 1] as any;
@@ -89,12 +90,12 @@ async function load() {
 }
 
 function go(url: string) {
-  uni.navigateTo({ url });
+  openPage(url);
 }
 
 function goToRequest() {
   const query = report.value ? `?assessmentId=${encodeURIComponent(report.value.id)}&preferredName=${encodeURIComponent(report.value.preferredName || "")}` : "";
-  uni.navigateTo({ url: `/pages/counselors/index${query}` });
+  openPage(`/pages/counselors/index${query}`);
 }
 
 if (code) {

@@ -1,7 +1,7 @@
 {
-  "name": "教师匿名心理支持",
+  "name": "心理支持",
   "appid": "__UNI__TEACHERSUPPORT",
-  "description": "面向教师群体的匿名心理支持请求平台",
+  "description": "面向用户和咨询师的心理支持预约平台",
   "versionName": "1.0.0",
   "versionCode": "100",
   "mp-weixin": {
@@ -12,6 +12,6 @@
     "usingComponents": true
   },
   "h5": {
-    "title": "教师匿名心理支持"
+    "title": "心理支持"
   }
 }

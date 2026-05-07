@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { createSupportRequestSchema } from "@teacher-support/shared";
 import type { Request } from "express";
 import { getAnonymousSessionId, getIpAddress } from "../common/request-context.js";
+import { UserAuthGuard } from "../user/user-auth.guard.js";
 import { SupportService } from "./support.service.js";
 
 @Controller("support")
@@ -29,6 +30,7 @@ export class SupportController {
   }
 
   @Post("requests")
+  @UseGuards(UserAuthGuard)
   createRequest(@Body() body: unknown, @Req() request: Request) {
     const payload = createSupportRequestSchema.parse(body);
     return this.support.createRequest({

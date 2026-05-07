@@ -214,6 +214,19 @@ export const counselorLoginSchema = z.object({
   password: z.string().min(8).max(128)
 });
 
+export const counselorRegisterSchema = z.object({
+  username: z.string().min(4).max(64).regex(/^[a-zA-Z0-9_-]+$/),
+  password: z.string().min(8).max(128),
+  legalName: z.string().min(2).max(40),
+  staffId: z.string().min(3).max(64),
+  organization: z.string().min(2).max(80),
+  workEmail: z.string().email().max(120),
+  displayName: z.string().min(2).max(40),
+  title: z.string().min(2).max(40),
+  intro: z.string().min(10).max(600),
+  specialties: z.array(z.string().min(1).max(24)).max(8)
+});
+
 export const updateCounselorProfileSchema = z.object({
   title: z.string().min(2).max(40),
   intro: z.string().min(10).max(600),
@@ -228,6 +241,50 @@ export const adminLoginSchema = z.object({
   username: z.string().min(2).max(64),
   password: z.string().min(8).max(128)
 });
+
+export const unifiedLoginSchema = z.object({
+  identifier: z.string().min(2).max(120),
+  password: z.string().min(8).max(128)
+});
+
+export const userRegisterSchema = z.object({
+  preferredName: z.string().min(1).max(40),
+  password: z.string().min(8).max(128),
+  recoveryEmail: z.string().email().max(120).optional().or(z.literal(""))
+});
+
+export const userLoginSchema = z.object({
+  identifier: z.string().min(2).max(120),
+  password: z.string().min(8).max(128)
+});
+
+export const userRecoverySchema = z.object({
+  privacyId: z.string().min(4).max(32),
+  recoveryPhrase: z.string().min(12).max(160),
+  password: z.string().min(8).max(128)
+});
+
+export interface PrivacyUserProfile {
+  id: string;
+  privacyId: string;
+  username?: string;
+  preferredName: string;
+  recoveryEmailMasked?: string;
+  createdAt: string;
+}
+
+export interface UnifiedLoginResponse {
+  token: string;
+  role: "user" | "counselor";
+  profile:
+    | PrivacyUserProfile
+    | {
+        username: string;
+        role: "counselor";
+        counselorId: string;
+        displayName: string;
+      };
+}
 
 export function normalizeOptional(value?: string | null) {
   const trimmed = value?.trim() ?? "";

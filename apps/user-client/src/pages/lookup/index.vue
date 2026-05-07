@@ -3,7 +3,7 @@
     <view class="hero">
       <text class="eyebrow">回执查询</text>
       <text class="title">查看请求状态</text>
-      <text class="copy">状态只用于让你知道中心是否已查看，不是对你的要求。</text>
+      <text class="copy">状态只用于让你了解请求进展，不是对你的要求。</text>
     </view>
     <view class="card stack">
       <input v-model="receiptCode" placeholder="输入匿名回执码" />

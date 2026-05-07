@@ -27,7 +27,7 @@ async function submit() {
 <template>
   <main class="login-page">
     <section class="login-card">
-      <p class="eyebrow">心理服务中心</p>
+      <p class="eyebrow">支持管理后台</p>
       <h1>后台登录</h1>
       <p class="muted">用于查看匿名支持请求、维护开放时段和处理审计。</p>
       <label>

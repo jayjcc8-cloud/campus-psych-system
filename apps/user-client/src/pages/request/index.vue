@@ -1,58 +1,101 @@
 <template>
-  <view class="page">
-    <view class="hero">
-      <text class="eyebrow">支持请求</text>
-      <text class="title">{{ counselorName ? `向${counselorName}提交匿名请求` : "提交匿名支持请求" }}</text>
-      <text class="copy">提交后会生成匿名回执码。请妥善保存，用于查看状态或撤回。</text>
+  <view class="page page-with-footer">
+    <view class="top-nav">
+      <text class="back-link" @click="goBack">‹</text>
+      <view class="top-title">
+        <text class="page-title compact-title">填写预约信息</text>
+        <text class="muted">只填写你愿意留下的内容</text>
+      </view>
+    </view>
+
+    <view class="step-strip">
+      <text class="step-item">选咨询师</text>
+      <text class="step-item">选时间</text>
+      <text class="step-item step-active">确认预约</text>
+    </view>
+
+    <view class="card stack-small">
+      <view class="row-start">
+        <view class="avatar avatar-small">{{ counselorName.slice(0, 1) || "咨" }}</view>
+        <view>
+          <text class="label-text">{{ counselorName || "已选咨询师" }}</text>
+          <text class="muted">{{ selectedSlot ? formatFullTime(selectedSlot.startTime) : "请选择一个开放时段" }}</text>
+        </view>
+      </view>
     </view>
 
     <view class="stack">
-      <view class="card">
-        <text class="label">已选时间</text>
-        <text v-if="loading" class="muted">正在同步时段...</text>
-        <view class="stack">
-          <view
-            v-for="slot in slots"
-            :key="slot.id"
-            class="choice"
-            :class="{ 'choice-active': slotId === slot.id }"
-            @click="slotId = slot.id"
-          >
-            <text>{{ formatTime(slot.startTime) }}</text>
-            <text class="muted">剩余 {{ slot.remainingCapacity }} 个位置</text>
-          </view>
+      <view class="card detail-list">
+        <view class="detail-row">
+          <text class="detail-label">咨询师</text>
+          <text class="detail-value">{{ counselorName || "已选咨询师" }}</text>
         </view>
+        <view class="detail-row">
+          <text class="detail-label">时间</text>
+          <text class="detail-value">{{ selectedSlot ? formatFullTime(selectedSlot.startTime) : "未选择" }}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">形式</text>
+          <text class="detail-value">匿名支持请求</text>
+        </view>
+        <button class="button-light" @click="goBack">修改时间或咨询师</button>
       </view>
 
       <view class="card stack">
-        <view class="field">
-          <text class="label">希望被如何称呼（可选）</text>
-          <input v-model="preferredName" placeholder="可以填写昵称、代称或留空" />
+        <view class="hint-card">
+          <text class="label-text">匿名边界</text>
+          <view class="meta-line">
+            <text class="mini-tag">称呼可空</text>
+            <text class="mini-tag">邮箱可空</text>
+            <text class="mini-tag">可撤回</text>
+          </view>
         </view>
         <view class="field">
-          <text class="label">邮箱（可选）</text>
-          <input v-model="contactEmail" placeholder="希望被联系时填写" />
+          <text class="label">希望被如何称呼</text>
+          <input v-model="preferredName" placeholder="可留空，也可填写昵称或代称" />
         </view>
         <view class="field">
-          <text class="label">其他联系方式（可选）</text>
-          <input v-model="contactNote" placeholder="例如只写办公邮箱、内线或其他方式" />
+          <text class="label">邮箱</text>
+          <input v-model="contactEmail" placeholder="可选，仅在你希望被联系时填写" />
         </view>
         <view class="field">
-          <text class="label">补充说明（可选）</text>
-          <textarea v-model="remark" maxlength="600" placeholder="可以只写你愿意表达的部分" />
+          <text class="label">其他联系方式</text>
+          <input v-model="contactNote" placeholder="可选，例如办公邮箱、内线或其他方式" />
+        </view>
+        <view class="field">
+          <text class="label">补充说明</text>
+          <textarea v-model="remark" maxlength="600" placeholder="可选，只写你愿意表达的部分" />
+          <text class="text-count">{{ remark.length }}/600</text>
         </view>
       </view>
 
+      <view class="card soft-card">
+        <text class="label-text">提交后会发生什么</text>
+        <text class="copy">系统会生成匿名回执码，用于查看状态或撤回。联系方式不填写也可以提交。</text>
+      </view>
+
       <text v-if="error" class="error">{{ error }}</text>
-      <button :disabled="submitting" @click="submit">{{ submitting ? "提交中..." : "匿名提交" }}</button>
+    </view>
+
+    <view class="summary-bar">
+      <view class="row-between">
+        <view>
+          <text class="label">本次预约</text>
+          <text class="muted">{{ selectedSlot ? `${counselorName} · ${formatShortTime(selectedSlot.startTime)}` : "请先选择时间" }}</text>
+        </view>
+        <button class="compact-button" :disabled="submitting || !slotId" @click="submit">
+          {{ submitting ? "提交中" : "确认预约" }}
+        </button>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import type { SupportSlot } from "@teacher-support/shared";
 import { createRequest, getCounselor, listCounselorSlots } from "../../api/client";
+import { requireUserLogin } from "../../utils/auth";
 import { saveLocalReceipt } from "../../utils/receipts";
 
 const slots = ref<SupportSlot[]>([]);
@@ -67,9 +110,16 @@ const remark = ref("");
 const loading = ref(false);
 const submitting = ref(false);
 const error = ref("");
+const selectedSlot = computed(() => slots.value.find((slot) => slot.id === slotId.value));
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleString();
+function formatShortTime(value: string) {
+  const date = new Date(value);
+  return `${date.getMonth() + 1}/${date.getDate()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function formatFullTime(value: string) {
+  const date = new Date(value);
+  return `${date.getMonth() + 1}/${date.getDate()} ${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()]} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 async function loadSlots() {
@@ -95,6 +145,8 @@ async function loadSlots() {
 
 async function submit() {
   error.value = "";
+  if (!requireUserLogin("提交预约请求")) return;
+
   if (!counselorId.value) {
     error.value = "请先选择一位咨询师。";
     return;
@@ -107,6 +159,9 @@ async function submit() {
     error.value = "邮箱格式看起来不正确。";
     return;
   }
+
+  const confirm = await showConfirm();
+  if (!confirm) return;
 
   submitting.value = true;
   try {
@@ -134,6 +189,23 @@ async function submit() {
   }
 }
 
+function showConfirm() {
+  return new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: "确认提交",
+      content: "提交后将生成匿名回执码。你可以之后查看状态或撤回预约。",
+      confirmText: "确认预约",
+      cancelText: "再看看",
+      success: (result) => resolve(Boolean(result.confirm)),
+      fail: () => resolve(false)
+    });
+  });
+}
+
+function goBack() {
+  uni.navigateBack();
+}
+
 const pages = getCurrentPages();
 const current = pages[pages.length - 1] as any;
 counselorId.value = decodeURIComponent(current?.options?.counselorId ?? "");
@@ -143,3 +215,41 @@ assessmentId.value = decodeURIComponent(current?.options?.assessmentId ?? "");
 
 onMounted(loadSlots);
 </script>
+
+<style scoped>
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  border-bottom: 1rpx solid #edf0f6;
+  padding: 24rpx 0;
+}
+
+.detail-row:first-child {
+  padding-top: 0;
+}
+
+.detail-row:nth-child(3) {
+  border-bottom: 0;
+}
+
+.detail-label {
+  color: #667085;
+  font-size: 25rpx;
+}
+
+.detail-value {
+  max-width: 430rpx;
+  color: #263a59;
+  font-size: 26rpx;
+  font-weight: 760;
+  text-align: right;
+}
+</style>

@@ -13,9 +13,9 @@ function logout() {
 <template>
   <main class="admin-layout">
     <aside class="nav-panel">
-      <p class="eyebrow">心理服务中心</p>
+      <p class="eyebrow">支持管理后台</p>
       <h1>匿名支持后台</h1>
-      <p class="muted">以尊重和克制的方式承接教师支持请求。</p>
+      <p class="muted">以尊重和克制的方式承接用户支持请求。</p>
 
       <nav class="nav-list">
         <RouterLink to="/">请求池</RouterLink>

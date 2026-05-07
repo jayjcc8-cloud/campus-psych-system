@@ -1,4 +1,4 @@
-import type { AssessmentSummary, CounselorProfile, SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
+import type { AssessmentSummary, CounselorProfile, PrivacyUserProfile, SupportRequestSummary, SupportSlot, UnifiedLoginResponse } from "@teacher-support/shared";
 import { getAnonymousSessionId } from "../utils/session";
 
 function resolveApiBaseUrl() {
@@ -13,6 +13,17 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl();
 const counselorTokenKey = "counselor_token";
+const userTokenKey = "privacy_user_token";
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode?: number
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH";
@@ -37,10 +48,11 @@ function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
           return;
         }
         const payload = response.data as { message?: string } | undefined;
-        reject(new Error(payload?.message ?? "请求暂时没有成功"));
+        reject(new ApiError(payload?.message ?? "请求暂时没有成功", response.statusCode));
       },
       fail(error) {
-        reject(new Error(error.errMsg || "网络连接暂时不可用"));
+        const message = error.errMsg && !error.errMsg.startsWith("request:fail") ? error.errMsg : "网络连接暂时不可用";
+        reject(new ApiError(message));
       }
     });
   });
@@ -54,6 +66,28 @@ function counselorRequest<T>(path: string, options: RequestOptions = {}) {
       ...(options.header ?? {})
     }
   });
+}
+
+function userRequest<T>(path: string, options: RequestOptions = {}) {
+  return request<T>(path, {
+    ...options,
+    header: {
+      Authorization: `Bearer ${getUserToken()}`,
+      ...(options.header ?? {})
+    }
+  });
+}
+
+export function getUserToken() {
+  return uni.getStorageSync(userTokenKey) || "";
+}
+
+export function setUserToken(token: string) {
+  uni.setStorageSync(userTokenKey, token);
+}
+
+export function clearUserToken() {
+  uni.removeStorageSync(userTokenKey);
 }
 
 export function getCounselorToken() {
@@ -93,14 +127,14 @@ export function createRequest(payload: {
   contactNote?: string;
   remark?: string;
 }) {
-  return request<{ id: string; receiptCode: string; status: string }>("/support/requests", {
+  return userRequest<{ id: string; receiptCode: string; status: string }>("/support/requests", {
     method: "POST",
     data: payload
   });
 }
 
 export function createAssessment(payload: { preferredName?: string; answers: Record<string, number> }) {
-  return request<AssessmentSummary>("/assessments", {
+  return userRequest<AssessmentSummary>("/assessments", {
     method: "POST",
     data: payload
   });
@@ -121,9 +155,34 @@ export function withdrawRequest(receiptCode: string) {
 }
 
 export function counselorLogin(username: string, password: string) {
-  return request<{ token: string; user: { counselorId: string; displayName: string; username: string } }>("/counselor/auth/login", {
+  return request<{ token: string; user: { counselorId: string; displayName: string; username: string; role: "counselor" } }>("/counselor/auth/login", {
     method: "POST",
     data: { username, password }
+  });
+}
+
+export function unifiedLogin(identifier: string, password: string) {
+  return request<UnifiedLoginResponse>("/auth/login", {
+    method: "POST",
+    data: { identifier, password }
+  });
+}
+
+export function counselorRegister(payload: {
+  username: string;
+  password: string;
+  legalName: string;
+  staffId: string;
+  organization: string;
+  workEmail: string;
+  displayName: string;
+  title: string;
+  intro: string;
+  specialties: string[];
+}) {
+  return request<{ status: "pending_review"; message: string }>("/counselor/auth/register", {
+    method: "POST",
+    data: payload
   });
 }
 
@@ -165,4 +224,29 @@ export function updateCounselorRequest(id: string, status: "viewed" | "noted" | 
     method: "PATCH",
     data: { status }
   });
+}
+
+export function registerPrivacyUser(payload: { password: string; preferredName: string; recoveryEmail?: string }) {
+  return request<{ token: string; user: PrivacyUserProfile; recoveryPhrase: string }>("/user/auth/register", {
+    method: "POST",
+    data: payload
+  });
+}
+
+export function loginPrivacyUser(identifier: string, password: string) {
+  return request<{ token: string; user: PrivacyUserProfile }>("/user/auth/login", {
+    method: "POST",
+    data: { identifier, password }
+  });
+}
+
+export function recoverPrivacyUser(payload: { privacyId: string; recoveryPhrase: string; password: string }) {
+  return request<{ token: string; user: PrivacyUserProfile }>("/user/auth/recover", {
+    method: "POST",
+    data: payload
+  });
+}
+
+export function getPrivacyUserMe() {
+  return userRequest<PrivacyUserProfile>("/user/me");
 }

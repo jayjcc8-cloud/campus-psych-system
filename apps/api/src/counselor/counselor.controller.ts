@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import {
+  counselorRegisterSchema,
   counselorLoginSchema,
   createSupportSlotSchema,
   updateCounselorProfileSchema,
@@ -17,6 +18,12 @@ export class CounselorController {
   login(@Body() body: unknown) {
     const payload = counselorLoginSchema.parse(body);
     return this.counselor.login(payload.username, payload.password);
+  }
+
+  @Post("auth/register")
+  register(@Body() body: unknown) {
+    const payload = counselorRegisterSchema.parse(body);
+    return this.counselor.register(payload);
   }
 
   @Get("me")

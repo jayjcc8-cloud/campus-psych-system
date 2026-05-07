@@ -15,7 +15,7 @@ export class AdminAuthGuard implements CanActivate {
     const payload = token ? verifyAdminToken(token) : null;
 
     if (!payload) {
-      throw new UnauthorizedException("请先登录心理服务中心后台。");
+      throw new UnauthorizedException("请先登录支持管理后台。");
     }
 
     request.admin = payload;
