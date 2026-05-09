@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { LockOnIcon } from "tdesign-icons-vue-next";
-import { assessmentRiskLabels, requestStatusLabels, type SupportRequestSummary } from "@teacher-support/shared";
+import {
+  assessmentRiskLabels,
+  requestStatusLabels,
+  supportSlotModeLabels,
+  type SupportRequestSummary
+} from "@teacher-support/shared";
 import { listEvents, listRequests, updateRequest } from "../api/client";
 import AdminShell from "../components/AdminShell.vue";
 
@@ -16,7 +21,9 @@ const revealContact = ref(false);
 const visibleRequests = computed(() =>
   activeStatus.value === "all" ? requests.value : requests.value.filter((item) => item.status === activeStatus.value)
 );
-const activeCount = computed(() => requests.value.filter((item) => ["new", "viewed", "noted"].includes(item.status)).length);
+const activeCount = computed(
+  () => requests.value.filter((item) => ["new", "viewed", "noted"].includes(item.status)).length
+);
 const riskCount = computed(() => requests.value.filter((item) => item.assessmentRiskLevel === "high").length);
 const contactCount = computed(() => requests.value.filter((item) => item.contactEmail || item.contactNote).length);
 
@@ -62,7 +69,12 @@ onMounted(load);
           <t-button theme="primary" @click="load">刷新</t-button>
         </div>
 
-        <t-alert class="security-alert" theme="info" message="End-to-End Encrypted Data View" description="涉及联系方式或可识别信息的字段默认折叠，所有查看和状态更新都会进入审计记录。" />
+        <t-alert
+          class="security-alert"
+          theme="info"
+          message="End-to-End Encrypted Data View"
+          description="涉及联系方式或可识别信息的字段默认折叠，所有查看和状态更新都会进入审计记录。"
+        />
 
         <div class="metrics-grid request-metrics">
           <article class="metric-card">
@@ -80,7 +92,13 @@ onMounted(load);
         </div>
 
         <t-space class="toolbar" break-line>
-          <t-button :theme="activeStatus === 'all' ? 'primary' : 'default'" :variant="activeStatus === 'all' ? 'base' : 'outline'" @click="activeStatus = 'all'">全部</t-button>
+          <t-button
+            :theme="activeStatus === 'all' ? 'primary' : 'default'"
+            :variant="activeStatus === 'all' ? 'base' : 'outline'"
+            @click="activeStatus = 'all'"
+          >
+            全部
+          </t-button>
           <t-button
             v-for="status in ['new', 'viewed', 'noted', 'closed', 'withdrawn', 'spam']"
             :key="status"
@@ -108,14 +126,29 @@ onMounted(load);
               <h3>{{ requestStatusLabels[item.status] }}</h3>
               <p>{{ item.counselorName || "未关联咨询师" }}</p>
               <p>{{ new Date(item.slotStartTime || item.createdAt).toLocaleString() }}</p>
+              <p>
+                {{ item.mode ? supportSlotModeLabels[item.mode] : "方式待补充" }} ·
+                {{ item.location || item.note || "地点待补充" }}
+              </p>
               <p class="request-meta">
-                <t-tag v-if="item.assessmentRiskLevel" :theme="item.assessmentRiskLevel === 'high' ? 'danger' : 'primary'" variant="light">
+                <t-tag
+                  v-if="item.assessmentRiskLevel"
+                  :theme="item.assessmentRiskLevel === 'high' ? 'danger' : 'primary'"
+                  variant="light"
+                >
                   {{ assessmentRiskLabels[item.assessmentRiskLevel] }}
                 </t-tag>
-                <t-tag theme="success" variant="light"><LockOnIcon size="13px" /> {{ item.contactEmail || item.contactNote ? "Encrypted Contact" : "Encrypted" }}</t-tag>
+                <t-tag theme="success" variant="light">
+                  <LockOnIcon size="13px" />
+                  {{ item.contactEmail || item.contactNote ? "Encrypted Contact" : "Encrypted" }}
+                </t-tag>
               </p>
             </div>
-            <t-tag :theme="item.abuseStatus === 'spam' ? 'danger' : 'default'" variant="light">{{ item.abuseStatus === "spam" ? "垃圾" : "隐私保护" }}</t-tag>
+            <t-tag :theme="item.abuseStatus === 'spam' ? 'danger' : 'default'" variant="light">
+              {{
+                item.abuseStatus === "spam" ? "垃圾" : "隐私保护"
+              }}
+            </t-tag>
           </article>
 
           <p v-if="!loading && visibleRequests.length === 0" class="empty-card">当前没有符合条件的预约。</p>
@@ -128,7 +161,14 @@ onMounted(load);
         <t-tag theme="success" variant="light"><LockOnIcon size="14px" /> End-to-End Encrypted</t-tag>
         <p class="muted">预约编号 {{ selected.id }}</p>
         <p class="muted">咨询师：{{ selected.counselorName || "未关联" }}</p>
-        <p v-if="selected.assessmentRiskLevel" class="muted">关联测评：{{ assessmentRiskLabels[selected.assessmentRiskLevel] }}</p>
+        <p class="muted">时间：{{ new Date(selected.slotStartTime || selected.createdAt).toLocaleString() }}</p>
+        <p class="muted">
+          方式地点：{{ selected.mode ? supportSlotModeLabels[selected.mode] : "方式待补充" }} ·
+          {{ selected.location || selected.note || "地点待补充" }}
+        </p>
+        <p v-if="selected.assessmentRiskLevel" class="muted">
+          关联测评：{{ assessmentRiskLabels[selected.assessmentRiskLevel] }}
+        </p>
         <p>{{ selected.remark || "未填写补充说明" }}</p>
         <div class="contact-box">
           <t-button variant="outline" @click="revealContact = !revealContact">

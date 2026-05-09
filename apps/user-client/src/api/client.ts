@@ -1,22 +1,20 @@
-import type { AssessmentSummary, CounselorProfile, PrivacyUserProfile, SupportRequestSummary, SupportSlot, UnifiedLoginResponse } from "@teacher-support/shared";
+import type {
+  AssessmentSummary,
+  CounselorProfile,
+  PrivacyUserProfile,
+  SupportRequestSummary,
+  SupportSlot,
+  SupportSlotMode,
+  UnifiedLoginResponse
+} from "@teacher-support/shared";
 import { getAnonymousSessionId } from "../utils/session";
 
 function resolveApiBaseUrl() {
-  // #ifdef H5
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
-
-  if (typeof window !== "undefined" && window.location?.hostname) {
-    return `${window.location.protocol}//${window.location.hostname}:4000`;
-  }
-  // #endif
-
   // #ifdef MP-WEIXIN
   return "http://127.0.0.1:4000";
   // #endif
 
-  // Fallback for non-H5 build tools and local previews.
+  // Fallback for build tools and local previews.
   return "http://127.0.0.1:4000";
 }
 
@@ -35,7 +33,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   data?: string | Record<string, unknown> | ArrayBuffer;
   header?: Record<string, string>;
 }
@@ -149,9 +147,19 @@ export function createRequest(payload: {
   contactNote?: string;
   remark?: string;
 }) {
-  return userRequest<{ id: string; receiptCode: string; status: string }>("/support/requests", {
+  return userRequest<SupportRequestSummary>("/support/requests", {
     method: "POST",
     data: payload
+  });
+}
+
+export function listUserAppointments() {
+  return userRequest<SupportRequestSummary[]>("/user/appointments");
+}
+
+export function withdrawUserAppointment(id: string) {
+  return userRequest<SupportRequestSummary>(`/user/appointments/${encodeURIComponent(id)}/withdraw`, {
+    method: "PATCH"
   });
 }
 
@@ -166,18 +174,11 @@ export function getAssessmentByReceipt(receiptCode: string) {
   return request<AssessmentSummary>(`/assessments/${encodeURIComponent(receiptCode)}`);
 }
 
-export function getRequestByReceipt(receiptCode: string) {
-  return request<SupportRequestSummary>(`/support/requests/${encodeURIComponent(receiptCode)}`);
-}
-
-export function withdrawRequest(receiptCode: string) {
-  return request<SupportRequestSummary>(`/support/requests/${encodeURIComponent(receiptCode)}/withdraw`, {
-    method: "PATCH"
-  });
-}
-
 export function counselorLogin(email: string, password: string) {
-  return request<{ token: string; user: { counselorId: string; displayName: string; username: string; email?: string; role: "counselor" } }>("/counselor/auth/login", {
+  return request<{
+    token: string;
+    user: { counselorId: string; displayName: string; username: string; email?: string; role: "counselor" };
+  }>("/counselor/auth/login", {
     method: "POST",
     data: { email, password }
   });
@@ -222,17 +223,42 @@ export function listCounselorOwnSlots() {
   return counselorRequest<SupportSlot[]>("/counselor/slots");
 }
 
-export function createCounselorSlot(payload: { startTime: string; endTime: string; capacity: number; available?: boolean }) {
+export function createCounselorSlot(payload: {
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  mode?: SupportSlotMode;
+  location?: string;
+  note?: string;
+  available?: boolean;
+}) {
   return counselorRequest<SupportSlot>("/counselor/slots", {
     method: "POST",
     data: payload
   });
 }
 
-export function updateCounselorSlot(id: string, payload: Partial<{ startTime: string; endTime: string; capacity: number; available: boolean }>) {
+export function updateCounselorSlot(
+  id: string,
+  payload: Partial<{
+    startTime: string;
+    endTime: string;
+    capacity: number;
+    mode: SupportSlotMode;
+    location: string;
+    note: string;
+    available: boolean;
+  }>
+) {
   return counselorRequest<SupportSlot>(`/counselor/slots/${encodeURIComponent(id)}`, {
     method: "PATCH",
     data: payload
+  });
+}
+
+export function deleteCounselorSlot(id: string) {
+  return counselorRequest<SupportSlot>(`/counselor/slots/${encodeURIComponent(id)}`, {
+    method: "DELETE"
   });
 }
 
@@ -240,7 +266,7 @@ export function listCounselorRequests() {
   return counselorRequest<SupportRequestSummary[]>("/counselor/support-requests");
 }
 
-export function updateCounselorRequest(id: string, status: "viewed" | "noted" | "closed") {
+export function updateCounselorRequest(id: string, status: "noted" | "closed") {
   return counselorRequest<SupportRequestSummary[]>(`/counselor/support-requests/${encodeURIComponent(id)}`, {
     method: "PATCH",
     data: { status }

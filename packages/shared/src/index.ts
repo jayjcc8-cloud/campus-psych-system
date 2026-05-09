@@ -9,24 +9,19 @@ export const supportIssueTypes = [
   "other"
 ] as const;
 
-export const supportRequestStatuses = [
-  "new",
-  "viewed",
-  "noted",
-  "closed",
-  "withdrawn",
-  "spam"
-] as const;
+export const supportRequestStatuses = ["new", "viewed", "noted", "closed", "withdrawn", "spam"] as const;
 
 export const abuseStatuses = ["clean", "limited", "spam"] as const;
 export const assessmentRiskLevels = ["low", "medium", "high"] as const;
 export const assessmentScaleIds = ["who5", "phq9", "gad7"] as const;
+export const supportSlotModes = ["offline", "online", "hybrid"] as const;
 
 export type SupportIssueType = (typeof supportIssueTypes)[number];
 export type SupportRequestStatus = (typeof supportRequestStatuses)[number];
 export type AbuseStatus = (typeof abuseStatuses)[number];
 export type AssessmentRiskLevel = (typeof assessmentRiskLevels)[number];
 export type AssessmentScaleId = (typeof assessmentScaleIds)[number];
+export type SupportSlotMode = (typeof supportSlotModes)[number];
 
 export const issueTypeLabels: Record<SupportIssueType, string> = {
   work_pressure: "工作压力",
@@ -39,7 +34,7 @@ export const issueTypeLabels: Record<SupportIssueType, string> = {
 
 export const requestStatusLabels: Record<SupportRequestStatus, string> = {
   new: "待确认",
-  viewed: "已查看",
+  viewed: "待确认",
   noted: "已确认",
   closed: "已完成",
   withdrawn: "已撤回",
@@ -56,6 +51,12 @@ export const assessmentScaleLabels: Record<AssessmentScaleId, string> = {
   who5: "整体幸福感",
   phq9: "抑郁相关困扰",
   gad7: "焦虑相关困扰"
+};
+
+export const supportSlotModeLabels: Record<SupportSlotMode, string> = {
+  offline: "线下咨询",
+  online: "线上咨询",
+  hybrid: "线上/线下"
 };
 
 export const assessmentCatalogVersion = "open_source_v1";
@@ -129,7 +130,12 @@ export const assessmentQuestions: AssessmentQuestion[] = [
   { id: "phq9_5", scale: "phq9", text: "最近两周，食欲或饮食状态有明显变化。", options: frequencyOptions },
   { id: "phq9_6", scale: "phq9", text: "最近两周，对自己有较多负面评价。", options: frequencyOptions },
   { id: "phq9_7", scale: "phq9", text: "最近两周，注意力不容易集中。", options: frequencyOptions },
-  { id: "phq9_8", scale: "phq9", text: "最近两周，行动或说话节奏明显变慢，或变得坐立不安。", options: frequencyOptions },
+  {
+    id: "phq9_8",
+    scale: "phq9",
+    text: "最近两周，行动或说话节奏明显变慢，或变得坐立不安。",
+    options: frequencyOptions
+  },
   { id: "phq9_9", scale: "phq9", text: "最近两周，出现过伤害自己的想法或觉得不如不在。", options: frequencyOptions },
   { id: "gad7_1", scale: "gad7", text: "最近两周，感到紧张、焦虑或放松不下来。", options: frequencyOptions },
   { id: "gad7_2", scale: "gad7", text: "最近两周，难以停止或控制担心。", options: frequencyOptions },
@@ -294,9 +300,13 @@ export interface SupportSlot {
   startTime: string;
   endTime: string;
   capacity: number;
+  mode: SupportSlotMode;
+  location?: string;
+  note?: string;
   remainingCapacity?: number;
   available: boolean;
   activeCount?: number;
+  deletedAt?: string;
 }
 
 export interface CounselorProfile {
@@ -354,14 +364,21 @@ export interface AssessmentStats {
 export interface SupportRequestSummary {
   id: string;
   receiptCode?: string;
+  userId?: string;
   preferredName?: string;
   assessmentId?: string;
   assessmentRiskLevel?: AssessmentRiskLevel;
+  assessmentScoreSummary?: AssessmentScaleScore[];
+  assessmentScaleVersion?: string;
+  assessmentSourceProfile?: string;
   counselorId?: string;
   counselorName?: string;
   slotId: string;
   slotStartTime?: string;
   slotEndTime?: string;
+  mode?: SupportSlotMode;
+  location?: string;
+  note?: string;
   issueType: SupportIssueType;
   contactEmail?: string;
   contactNote?: string;
@@ -422,15 +439,36 @@ export const createAssessmentSchema = z.object({
   answers: z.record(z.string(), z.number().int().min(0).max(5))
 });
 
-export const createSupportSlotSchema = z.object({
+const supportSlotBaseSchema = z.object({
   counselorId: z.string().uuid().optional(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
   capacity: z.number().int().min(1).max(20),
+  mode: z.enum(supportSlotModes).default("offline"),
+  location: z.string().max(160).optional().or(z.literal("")),
+  note: z.string().max(240).optional().or(z.literal("")),
   available: z.boolean().optional()
 });
 
-export const updateSupportSlotSchema = createSupportSlotSchema.partial();
+function requireLocationForInPersonSlot(value: { mode?: SupportSlotMode; location?: string }, ctx: z.RefinementCtx) {
+  if ((value.mode === "offline" || value.mode === "hybrid") && !value.location?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["location"],
+      message: "线下或混合预约需要填写地点"
+    });
+  }
+}
+
+export const createSupportSlotSchema = supportSlotBaseSchema.superRefine(requireLocationForInPersonSlot);
+
+export const createCounselorSupportSlotSchema = supportSlotBaseSchema
+  .omit({ counselorId: true })
+  .superRefine(requireLocationForInPersonSlot);
+
+export const updateSupportSlotSchema = supportSlotBaseSchema.partial();
+
+export const updateCounselorSupportSlotSchema = supportSlotBaseSchema.omit({ counselorId: true }).partial();
 
 export const counselorLoginSchema = z.object({
   email: z.string().min(2).max(120),
@@ -472,7 +510,7 @@ export const unifiedLoginSchema = z.object({
 export const userRegisterSchema = z.object({
   email: z.string().email().max(120),
   preferredName: z.string().max(40).optional().or(z.literal("")),
-  password: z.string().min(8).max(128),
+  password: z.string().min(8).max(128)
 });
 
 export const userLoginSchema = z.object({

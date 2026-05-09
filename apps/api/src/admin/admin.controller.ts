@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import {
   adminLoginSchema,
   counselorReviewSchema,
@@ -89,6 +89,12 @@ export class AdminController {
   updateSlot(@Param("id") id: string, @Body() body: unknown, @Req() request: AdminRequest) {
     const payload = updateSupportSlotSchema.parse(body);
     return this.support.updateSlot(id, payload, request.admin!.sub);
+  }
+
+  @Delete("support-slots/:id")
+  @UseGuards(AdminAuthGuard)
+  deleteSlot(@Param("id") id: string, @Req() request: AdminRequest) {
+    return this.support.deleteSlot(id, request.admin!.sub);
   }
 
   @Get("audit-logs")

@@ -1,15 +1,5 @@
 <template>
   <view class="page page-with-footer">
-    <!-- #ifdef H5 -->
-    <view class="h5-flow-header">
-      <view>
-        <text class="h5-flow-title">选择咨询师</text>
-        <text class="h5-flow-subtitle">预约流程 1 / 3 · 先了解，再选择</text>
-      </view>
-      <button class="button-light" @click="goHome">返回首页</button>
-    </view>
-    <!-- #endif -->
-
     <!-- #ifdef MP-WEIXIN -->
     <view class="top-nav">
       <text class="back-link" @click="goHome">‹</text>
@@ -24,6 +14,11 @@
       <text class="step-item step-active">选择咨询师</text>
       <text class="step-item">选择时间</text>
       <text class="step-item">确认预约</text>
+    </view>
+
+    <view v-if="assessmentId" class="linked-assessment-card">
+      <text class="mini-tag">已关联测评结果</text>
+      <text class="muted">预约提交后，咨询师仅能看到风险等级和量表摘要，不会看到逐题答案。</text>
     </view>
 
     <view class="stack">
@@ -192,5 +187,15 @@ onShow(syncPendingQuery);
   border-color: #2563eb;
   background: #2563eb;
   color: #ffffff;
+}
+
+.linked-assessment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-top: 24rpx;
+  border-radius: 28rpx;
+  background: #eef6ff;
+  padding: 24rpx;
 }
 </style>

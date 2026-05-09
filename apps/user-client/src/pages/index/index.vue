@@ -1,84 +1,4 @@
 <template>
-  <!-- #ifdef H5 -->
-  <view class="h5-landing">
-    <view class="h5-site-header">
-      <view class="h5-brand">
-        <text class="h5-brand-mark">心</text>
-        <text>心理支持预约</text>
-      </view>
-      <view class="h5-nav">
-        <button class="h5-link-button" @click="go('/pages/assessment/index')">心理测评</button>
-        <button class="h5-link-button" @click="go('/pages/privacy/index')">隐私说明</button>
-        <button @click="goAccountEntry">{{ accountEntryText }}</button>
-      </view>
-    </view>
-
-    <view class="h5-container h5-hero-grid">
-      <view class="h5-hero-copy">
-        <wd-tag type="primary" plain round>Privacy protocols active</wd-tag>
-        <text class="h5-landing-title">把心理支持预约，变成更轻的一步</text>
-        <text class="h5-landing-copy">面向用户和咨询师的预约与支持平台。用户可以先了解、再选择、再预约；咨询师维护排期与预约；后台只做数据看板与审计。</text>
-        <view class="h5-cta-row">
-          <button @click="go('/pages/counselors/index')">开始预约</button>
-          <button class="button-soft" @click="go('/pages/assessment/index')">先做测评</button>
-        </view>
-      </view>
-
-      <view class="h5-phone-preview h5-shell-card">
-        <view class="home-hero">
-          <view>
-            <text class="home-greeting">Hi，你辛苦了</text>
-            <text class="home-copy">现在的状态怎么样？</text>
-          </view>
-          <view class="orb">
-            <text class="orb-dot orb-dot-left"></text>
-            <text class="orb-dot orb-dot-right"></text>
-          </view>
-        </view>
-        <button class="booking-panel interactive" @click="go('/pages/counselors/index')">
-          <view>
-            <text class="panel-title">预约心理咨询</text>
-            <text class="panel-copy">找一个你愿意说话的时间</text>
-          </view>
-          <text class="panel-button">开始预约 →</text>
-        </button>
-      </view>
-    </view>
-
-    <view class="h5-container h5-section-grid">
-      <view class="h5-feature-card">
-        <text class="card-title">低负担预约</text>
-        <text class="muted">先看咨询师，再选时间，最后确认提交，过程清楚可回退。</text>
-      </view>
-      <view class="h5-feature-card">
-        <text class="card-title">心理测评入口</text>
-        <text class="muted">测评只作为状态参考，不替代医学诊断，也不影响预约。</text>
-      </view>
-      <view class="h5-feature-card">
-        <text class="card-title">隐私友好</text>
-        <text class="muted">支持可选称呼、可选联系方式，回执用于查看状态。</text>
-      </view>
-    </view>
-
-    <view class="h5-container h5-two-column">
-      <view class="h5-shell-card h5-action-panel">
-        <text class="card-title">最近可约</text>
-        <view v-if="recentSlots.length" class="quick-slot-row">
-          <button v-for="slot in recentSlots" :key="slot.id" class="quick-slot" @click="go('/pages/counselors/index')">
-            {{ formatSlot(slot.startTime) }}
-          </button>
-        </view>
-        <text v-else class="muted">暂未同步到可约时段，可以先查看咨询师资料。</text>
-      </view>
-      <view class="h5-shell-card h5-action-panel">
-        <text class="card-title">继续你的预约</text>
-        <text class="muted">{{ recentAppointment ? `已有回执 ${recentAppointment.receiptCode}` : "还没有本机预约回执。" }}</text>
-        <button class="button-light" @click="go('/pages/requests/index')">查看我的预约</button>
-      </view>
-    </view>
-  </view>
-  <!-- #endif -->
-
   <!-- #ifdef MP-WEIXIN -->
   <view class="page">
     <view class="home-hero">
@@ -120,10 +40,12 @@
         <text class="pill pill-soft">即将开始</text>
       </view>
       <view v-if="recentAppointment" class="home-appointment interactive" @click="openRecentAppointment">
-        <view class="avatar avatar-small">{{ recentAppointment.title.slice(0, 1) }}</view>
+        <view class="avatar avatar-small">{{ (recentAppointment.counselorName || "咨").slice(0, 1) }}</view>
         <view class="home-appointment-main">
-          <text class="label-text">{{ recentAppointment.title }}</text>
-          <text class="muted">回执码 {{ recentAppointment.receiptCode }}</text>
+          <text class="label-text">{{ recentAppointment.counselorName || "咨询师" }}</text>
+          <text class="muted">
+            {{ formatSlot(recentAppointment.slotStartTime || recentAppointment.createdAt, recentAppointment.slotEndTime) }}
+          </text>
         </view>
       </view>
       <view v-else class="empty-inline">
@@ -141,7 +63,7 @@
     </view>
     <view v-if="recentSlots.length" class="quick-slot-row">
       <button v-for="slot in recentSlots" :key="slot.id" class="quick-slot" @click="go('/pages/counselors/index')">
-        {{ formatSlot(slot.startTime) }}
+        {{ formatSlot(slot.startTime, slot.endTime) }}
       </button>
     </view>
     <view v-else class="card soft-card">
@@ -170,22 +92,22 @@
 <script setup lang="ts">
 import { onShow } from "@dcloudio/uni-app";
 import { computed, onMounted, ref } from "vue";
-import type { SupportSlot } from "@teacher-support/shared";
-import { getCounselorToken, getUserToken, listSlots } from "../../api/client";
+import type { SupportRequestSummary, SupportSlot } from "@teacher-support/shared";
+import { getUserToken, listSlots, listUserAppointments } from "../../api/client";
 import { openPage } from "../../utils/navigation";
-import { listLocalReceipts, type LocalReceipt } from "../../utils/receipts";
 
 const selectedMood = ref("");
 const recentSlots = ref<SupportSlot[]>([]);
-const receipts = ref<LocalReceipt[]>([]);
-const accountEntryText = ref("登录");
+const appointments = ref<SupportRequestSummary[]>([]);
 const moods = [
   { label: "有点累", icon: "○" },
   { label: "有点乱", icon: "◔" },
   { label: "还好", icon: "✦" },
   { label: "说不上来", icon: "◌" }
 ];
-const recentAppointment = computed(() => receipts.value.find((item) => item.kind === "support_request"));
+const recentAppointment = computed(() =>
+  appointments.value.find((item) => ["new", "viewed", "noted"].includes(item.status))
+);
 
 function selectMood(item: (typeof moods)[number]) {
   selectedMood.value = selectedMood.value === item.label ? "" : item.label;
@@ -195,30 +117,18 @@ function go(url: string) {
   openPage(url);
 }
 
-function goAccountEntry() {
-  if (getCounselorToken()) {
-    openPage("/pages/counselor-workspace/index");
-    return;
-  }
-
-  if (getUserToken()) {
-    openPage("/pages/profile/index");
-    return;
-  }
-
-  openPage("/pages/login/index");
-}
-
 function openRecentAppointment() {
   if (!recentAppointment.value) return;
-  openPage(`/pages/lookup/index?code=${encodeURIComponent(recentAppointment.value.receiptCode)}`);
+  openPage(`/pages/receipt/index?id=${encodeURIComponent(recentAppointment.value.id)}`);
 }
 
-function formatSlot(value: string) {
+function formatSlot(value: string, end?: string) {
   const date = new Date(value);
   const today = new Date();
   const label = date.toDateString() === today.toDateString() ? "今天" : `${date.getMonth() + 1}/${date.getDate()}`;
-  return `${label} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  const startText = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const endText = end ? new Date(end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  return `${label} ${endText ? `${startText}-${endText}` : startText}`;
 }
 
 async function loadRecentSlots() {
@@ -229,24 +139,19 @@ async function loadRecentSlots() {
   }
 }
 
-function refreshReceipts() {
-  receipts.value = listLocalReceipts();
-}
-
-function refreshAccountEntry() {
-  if (getCounselorToken()) {
-    accountEntryText.value = "咨询师端";
+async function refreshAppointments() {
+  if (!getUserToken()) {
+    appointments.value = [];
     return;
   }
-
-  accountEntryText.value = getUserToken() ? "我的" : "登录";
+  try {
+    appointments.value = await listUserAppointments();
+  } catch {
+    appointments.value = [];
+  }
 }
 
 function syncHomeChrome() {
-  // #ifdef H5
-  uni.hideTabBar();
-  // #endif
-
   // #ifdef MP-WEIXIN
   uni.showTabBar();
   // #endif
@@ -254,13 +159,11 @@ function syncHomeChrome() {
 
 onMounted(() => {
   syncHomeChrome();
-  refreshAccountEntry();
   void loadRecentSlots();
 });
 onShow(() => {
   syncHomeChrome();
-  refreshAccountEntry();
-  refreshReceipts();
+  void refreshAppointments();
 });
 </script>
 
@@ -297,8 +200,7 @@ onShow(() => {
   border-radius: 70rpx;
   background:
     radial-gradient(circle at 32% 26%, rgba(255, 218, 210, 0.88), transparent 25%),
-    radial-gradient(circle at 64% 65%, rgba(37, 99, 235, 0.78), transparent 44%),
-    rgba(157, 240, 220, 0.5);
+    radial-gradient(circle at 64% 65%, rgba(37, 99, 235, 0.78), transparent 44%), rgba(157, 240, 220, 0.5);
   filter: blur(1rpx);
 }
 
@@ -477,111 +379,4 @@ onShow(() => {
   border-radius: 50% 0 50% 0;
   background: linear-gradient(145deg, rgba(151, 207, 190, 0.48), rgba(151, 207, 190, 0.08));
 }
-
-/* #ifdef H5 */
-.h5-landing {
-  min-height: 100vh;
-  padding-bottom: 72px;
-}
-
-.h5-hero-grid {
-  display: grid;
-  align-items: center;
-  grid-template-columns: minmax(0, 1.05fr) 420px;
-  gap: 56px;
-  padding: 34px 0 54px;
-}
-
-.h5-hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.h5-landing-title {
-  display: block;
-  max-width: 720px;
-  color: #101828;
-  font-size: 64px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1.04;
-}
-
-.h5-landing-copy {
-  display: block;
-  max-width: 640px;
-  color: #667085;
-  font-size: 18px;
-  line-height: 1.8;
-}
-
-.h5-cta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.h5-cta-row button,
-.h5-action-panel button {
-  min-height: 48px;
-  border-radius: 16px;
-  padding: 12px 22px;
-  font-size: 15px;
-}
-
-.h5-phone-preview {
-  overflow: hidden;
-  min-height: 620px;
-  padding: 22px;
-}
-
-.h5-phone-preview .home-hero {
-  padding-top: 20px;
-}
-
-.h5-section-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.h5-feature-card,
-.h5-action-panel {
-  border: 1px solid rgba(218, 224, 238, 0.9);
-  border-radius: 26px;
-  background: #ffffff;
-  box-shadow: 0 18px 48px rgba(31, 41, 55, 0.06);
-  padding: 26px;
-}
-
-.h5-two-column {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 22px;
-}
-
-.h5-action-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-@media (max-width: 900px) {
-  .h5-hero-grid,
-  .h5-section-grid,
-  .h5-two-column {
-    grid-template-columns: 1fr;
-  }
-
-  .h5-landing-title {
-    font-size: 42px;
-  }
-
-  .h5-phone-preview {
-    min-height: auto;
-  }
-}
-/* #endif */
 </style>

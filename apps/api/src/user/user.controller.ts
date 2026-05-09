@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { userLoginSchema, userRecoverySchema, userRegisterSchema } from "@teacher-support/shared";
 import { UserAuthGuard, type UserRequest } from "./user-auth.guard.js";
 import { UserService } from "./user.service.js";
@@ -33,5 +33,17 @@ export class UserController {
   @UseGuards(UserAuthGuard)
   me(@Req() request: UserRequest) {
     return this.users.getMe(request.user!.userId!);
+  }
+
+  @Get("appointments")
+  @UseGuards(UserAuthGuard)
+  listAppointments(@Req() request: UserRequest) {
+    return this.users.listAppointments(request.user!.userId!);
+  }
+
+  @Patch("appointments/:id/withdraw")
+  @UseGuards(UserAuthGuard)
+  withdrawAppointment(@Req() request: UserRequest, @Param("id") id: string) {
+    return this.users.withdrawAppointment(request.user!.userId!, id);
   }
 }

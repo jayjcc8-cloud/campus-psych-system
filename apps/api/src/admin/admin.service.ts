@@ -100,14 +100,19 @@ export class AdminService {
     return result.rows.map(mapCounselorReview);
   }
 
-  async reviewCounselor(counselorId: string, decision: "approve" | "reject", reason: string | undefined, adminUserId: string) {
+  async reviewCounselor(
+    counselorId: string,
+    decision: "approve" | "reject",
+    reason: string | undefined,
+    adminUserId: string
+  ) {
     const nextCounselorStatus = decision === "approve" ? "approved" : "suspended";
     const nextAccountStatus = decision === "approve" ? "active" : "disabled";
     await this.database.transaction(async (client) => {
-      await client.query(
-        "UPDATE counselors SET status = $2, updated_at = now() WHERE id = $1",
-        [counselorId, nextCounselorStatus]
-      );
+      await client.query("UPDATE counselors SET status = $2, updated_at = now() WHERE id = $1", [
+        counselorId,
+        nextCounselorStatus
+      ]);
       await client.query(
         "UPDATE counselor_accounts SET status = $2, token_version = token_version + 1, updated_at = now() WHERE counselor_id = $1",
         [counselorId, nextAccountStatus]
@@ -176,7 +181,12 @@ export class AdminService {
        GROUP BY days.day
        ORDER BY days.day ASC`
     );
-    const workload = await this.database.query<{ counselor_id: string; counselor_name: string; request_count: string; pending_count: string }>(
+    const workload = await this.database.query<{
+      counselor_id: string;
+      counselor_name: string;
+      request_count: string;
+      pending_count: string;
+    }>(
       `SELECT counselors.id AS counselor_id,
               counselors.display_name AS counselor_name,
               COUNT(requests.id) AS request_count,
@@ -256,13 +266,17 @@ export class AdminService {
 }
 
 const requestSelectSql = `
-SELECT requests.id,
-       requests.counselor_id,
-       counselors.display_name AS counselor_name,
-       requests.slot_id,
-       slots.start_time AS slot_start_time,
-       slots.end_time AS slot_end_time,
-       requests.preferred_name,
+	SELECT requests.id,
+	       requests.user_id,
+	       requests.counselor_id,
+	       counselors.display_name AS counselor_name,
+	       requests.slot_id,
+	       slots.start_time AS slot_start_time,
+	       slots.end_time AS slot_end_time,
+	       slots.mode,
+	       slots.location,
+	       slots.note,
+	       requests.preferred_name,
        requests.assessment_id,
        requests.issue_type,
        requests.contact_email,
@@ -302,6 +316,7 @@ function mapCounselorReview(row: any) {
 function mapRequest(row: any) {
   return {
     id: row.id,
+    userId: row.user_id ?? undefined,
     preferredName: row.preferred_name ?? undefined,
     assessmentId: row.assessment_id ?? undefined,
     assessmentRiskLevel: row.assessment_risk_level ?? undefined,
@@ -310,6 +325,9 @@ function mapRequest(row: any) {
     slotId: row.slot_id,
     slotStartTime: row.slot_start_time,
     slotEndTime: row.slot_end_time,
+    mode: row.mode ?? undefined,
+    location: row.location ?? undefined,
+    note: row.note ?? undefined,
     issueType: row.issue_type,
     contactEmail: row.contact_email ?? undefined,
     contactNote: row.contact_note ?? undefined,

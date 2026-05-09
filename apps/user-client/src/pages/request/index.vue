@@ -1,15 +1,5 @@
 <template>
   <view class="page page-with-footer">
-    <!-- #ifdef H5 -->
-    <view class="h5-flow-header">
-      <view>
-        <text class="h5-flow-title">确认预约</text>
-        <text class="h5-flow-subtitle">预约流程 3 / 3 · 只填写你愿意留下的内容</text>
-      </view>
-      <button class="button-light" @click="goBack">返回上一步</button>
-    </view>
-    <!-- #endif -->
-
     <!-- #ifdef MP-WEIXIN -->
     <view class="top-nav">
       <text class="back-link" @click="goBack">‹</text>
@@ -27,16 +17,38 @@
       </view>
       <view class="detail-row">
         <text class="detail-label">时间</text>
-        <text class="detail-value">{{ selectedSlot ? formatFullTime(selectedSlot.startTime) : "未选择" }}</text>
+        <text class="detail-value">
+          {{
+            selectedSlot ? formatFullRange(selectedSlot.startTime, selectedSlot.endTime) : "未选择"
+          }}
+        </text>
       </view>
       <view class="detail-row">
         <text class="detail-label">形式</text>
-        <text class="detail-value">线下 / 线上支持</text>
+        <text class="detail-value">{{ selectedSlot ? supportSlotModeLabels[selectedSlot.mode] : "待选择" }}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">地点/说明</text>
+        <text class="detail-value">{{ selectedSlot?.location || selectedSlot?.note || "确认后补充" }}</text>
       </view>
       <view class="detail-row">
         <text class="detail-label">时长</text>
-        <text class="detail-value">约 50 分钟</text>
+        <text class="detail-value">
+          {{
+            selectedSlot ? `${durationMinutes(selectedSlot.startTime, selectedSlot.endTime)} 分钟` : "约 50 分钟"
+          }}
+        </text>
       </view>
+    </view>
+
+    <view v-if="assessmentId" class="assessment-link-card">
+      <view class="row-between">
+        <text class="label-text">已关联测评结果</text>
+        <text class="mini-tag">{{ linkedAssessment?.riskLabel || "摘要" }}</text>
+      </view>
+      <text class="muted">
+        {{ linkedAssessment?.summary || "咨询师仅能看到风险等级和三项量表摘要，不会看到逐题答案。" }}
+      </text>
     </view>
 
     <view class="card stack">
@@ -57,7 +69,7 @@
 
     <view class="privacy-tip">
       <text class="mini-tag">隐私提示</text>
-      <text class="muted">你的信息仅用于本次预约。确认后会生成回执码，可用于查看状态或撤回。</text>
+      <text class="muted">你的信息仅用于本次预约。确认后可在“我的预约”中查看状态或撤回。</text>
     </view>
 
     <text v-if="error" class="error">{{ error }}</text>
@@ -73,11 +85,10 @@
 <script setup lang="ts">
 import { onLoad } from "@dcloudio/uni-app";
 import { computed, onMounted, ref } from "vue";
-import type { SupportSlot } from "@teacher-support/shared";
+import { assessmentRiskLabels, supportSlotModeLabels, type AssessmentRiskLevel, type AssessmentScaleScore, type SupportSlot } from "@teacher-support/shared";
 import { createRequest, getCounselor, listCounselorSlots } from "../../api/client";
 import { requireUserLogin } from "../../utils/auth";
 import { replacePage } from "../../utils/navigation";
-import { saveLocalReceipt } from "../../utils/receipts";
 
 const slots = ref<SupportSlot[]>([]);
 const counselorId = ref("");
@@ -90,15 +101,40 @@ const remark = ref("");
 const submitting = ref(false);
 const error = ref("");
 const selectedSlot = computed(() => slots.value.find((slot) => slot.id === slotId.value));
-
-function formatShortTime(value: string) {
-  const date = new Date(value);
-  return `${date.getMonth() + 1}/${date.getDate()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-}
+const linkedAssessment = computed(() => {
+  if (!assessmentId.value) return null;
+  const stored = uni.getStorageSync(`assessment_summary:${assessmentId.value}`) as
+    | {
+        riskLevel?: AssessmentRiskLevel;
+        scoreSummary?: AssessmentScaleScore[];
+      }
+    | "";
+  if (!stored || typeof stored !== "object") {
+    return {
+      riskLabel: "已关联",
+      summary: "咨询师仅能看到风险等级和三项量表摘要，不会看到逐题答案。"
+    };
+  }
+  const scores = stored.scoreSummary ?? [];
+  const scoreText = scores.map((score) => `${score.label}${score.rawScore}/${score.maxScore}`).join(" · ");
+  return {
+    riskLabel: stored.riskLevel ? assessmentRiskLabels[stored.riskLevel] : "已关联",
+    summary: scoreText || "咨询师仅能看到风险等级和三项量表摘要，不会看到逐题答案。"
+  };
+});
 
 function formatFullTime(value: string) {
   const date = new Date(value);
   return `${date.getMonth() + 1}/${date.getDate()} ${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()]} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function formatFullRange(start: string, end: string) {
+  const endDate = new Date(end);
+  return `${formatFullTime(start)}-${endDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function durationMinutes(start: string, end: string) {
+  return Math.max(Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000), 1);
 }
 
 async function loadSlots() {
@@ -107,7 +143,10 @@ async function loadSlots() {
     return;
   }
   try {
-    const [profile, availableSlots] = await Promise.all([getCounselor(counselorId.value), listCounselorSlots(counselorId.value)]);
+    const [profile, availableSlots] = await Promise.all([
+      getCounselor(counselorId.value),
+      listCounselorSlots(counselorId.value)
+    ]);
     counselorName.value = profile.displayName;
     slots.value = availableSlots;
   } catch (err) {
@@ -140,14 +179,7 @@ async function submit() {
       contactEmail: contactEmail.value,
       remark: remark.value
     });
-    saveLocalReceipt({
-      kind: "support_request",
-      receiptCode: result.receiptCode,
-      itemId: result.id,
-      title: `${counselorName.value || "咨询师"} · 预约`,
-      createdAt: new Date().toISOString()
-    });
-    replacePage(`/pages/receipt/index?code=${encodeURIComponent(result.receiptCode)}`);
+    replacePage(`/pages/receipt/index?id=${encodeURIComponent(result.id)}`);
   } catch (err) {
     error.value = err instanceof Error ? err.message : "预约暂时没有成功";
   } finally {
@@ -159,7 +191,9 @@ function showConfirm() {
   return new Promise<boolean>((resolve) => {
     uni.showModal({
       title: "确认预约",
-      content: `${counselorName.value || "已选咨询师"} · ${selectedSlot.value ? formatShortTime(selectedSlot.value.startTime) : ""}\n确认后会生成预约回执码。`,
+      content: `${counselorName.value || "已选咨询师"} · ${
+        selectedSlot.value ? formatShortRange(selectedSlot.value.startTime, selectedSlot.value.endTime) : ""
+      }\n确认后提交预约，状态会同步到我的预约。`,
       confirmText: "确认预约",
       cancelText: "再看看",
       success: (result) => resolve(Boolean(result.confirm)),
@@ -168,10 +202,21 @@ function showConfirm() {
   });
 }
 
+function formatShortRange(start: string, end?: string) {
+  const date = new Date(start);
+  const startText = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const endText = end ? new Date(end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  return `${date.getMonth() + 1}/${date.getDate()} ${endText ? `${startText}-${endText}` : startText}`;
+}
+
 function goBack() {
   uni.navigateBack({
     fail: () => {
-      replacePage(counselorId.value ? `/pages/counselor-detail/index?id=${encodeURIComponent(counselorId.value)}` : "/pages/counselors/index");
+      replacePage(
+        counselorId.value
+          ? `/pages/counselor-detail/index?id=${encodeURIComponent(counselorId.value)}`
+          : "/pages/counselors/index"
+      );
     }
   });
 }
@@ -233,6 +278,17 @@ onMounted(() => {
   border-radius: 28rpx;
   background: #f7f9ff;
   padding: 24rpx;
+}
+
+.assessment-link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  margin-top: 24rpx;
+  border-radius: 30rpx;
+  background: #eef6ff;
+  box-shadow: 0 18rpx 52rpx rgba(31, 41, 55, 0.04);
+  padding: 26rpx;
 }
 
 .full-confirm {

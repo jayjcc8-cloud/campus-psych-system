@@ -113,15 +113,31 @@ importers:
         specifier: ^5.4.5
         version: 5.9.3
 
+  apps/official-web:
+    dependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^5.0.5
+        version: 5.2.4(vite@5.4.21(@types/node@22.19.17)(less@3.13.1)(lightningcss@1.32.0)(sass@1.99.0)(stylus@0.64.0)(terser@5.46.1))(vue@3.5.33(typescript@5.9.3))
+      vite:
+        specifier: ^5.3.3
+        version: 5.4.21(@types/node@22.19.17)(less@3.13.1)(lightningcss@1.32.0)(sass@1.99.0)(stylus@0.64.0)(terser@5.46.1)
+      vue:
+        specifier: ^3.4.31
+        version: 3.5.33(typescript@5.9.3)
+    devDependencies:
+      typescript:
+        specifier: ^5.4.5
+        version: 5.9.3
+      vue-tsc:
+        specifier: ^2.0.26
+        version: 2.2.12(typescript@5.9.3)
+
   apps/user-client:
     dependencies:
       '@dcloudio/uni-app':
         specifier: 3.0.0-4020420240722002
         version: 3.0.0-4020420240722002(@dcloudio/types@3.4.8)(postcss@8.5.10)(rollup@4.60.2)(vue@3.5.33(typescript@5.9.3))
       '@dcloudio/uni-components':
-        specifier: 3.0.0-4020420240722002
-        version: 3.0.0-4020420240722002(postcss@8.5.10)(rollup@4.60.2)(vue@3.5.33(typescript@5.9.3))
-      '@dcloudio/uni-h5':
         specifier: 3.0.0-4020420240722002
         version: 3.0.0-4020420240722002(postcss@8.5.10)(rollup@4.60.2)(vue@3.5.33(typescript@5.9.3))
       '@dcloudio/uni-mp-weixin':

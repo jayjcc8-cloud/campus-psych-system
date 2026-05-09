@@ -4,7 +4,8 @@ import type {
   AuditLogEntry,
   CounselorReviewSummary,
   SupportRequestSummary,
-  SupportSlot
+  SupportSlot,
+  SupportSlotMode
 } from "@teacher-support/shared";
 
 function resolveApiBaseUrl() {
@@ -109,16 +110,17 @@ export function listSlots() {
   return request<SupportSlot[]>("/admin/support-slots");
 }
 
-export function createSlot(input: { startTime: string; endTime: string; capacity: number; available?: boolean }) {
-  return request<SupportSlot>("/admin/support-slots", {
-    method: "POST",
-    body: JSON.stringify(input)
-  });
-}
-
 export function updateSlot(
   id: string,
-  input: Partial<{ startTime: string; endTime: string; capacity: number; available: boolean }>
+  input: Partial<{
+    startTime: string;
+    endTime: string;
+    capacity: number;
+    mode: SupportSlotMode;
+    location: string;
+    note: string;
+    available: boolean;
+  }>
 ) {
   return request<SupportSlot>(`/admin/support-slots/${id}`, {
     method: "PATCH",

@@ -1,11 +1,11 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import {
   counselorRegisterSchema,
   counselorLoginSchema,
-  createSupportSlotSchema,
+  createCounselorSupportSlotSchema,
   updateCounselorProfileSchema,
-  updateSupportRequestSchema,
-  updateSupportSlotSchema
+  updateCounselorSupportSlotSchema,
+  updateSupportRequestSchema
 } from "@teacher-support/shared";
 import { CounselorAuthGuard, type CounselorRequest } from "./counselor-auth.guard.js";
 import { CounselorService } from "./counselor.service.js";
@@ -48,15 +48,21 @@ export class CounselorController {
   @Post("slots")
   @UseGuards(CounselorAuthGuard)
   createSlot(@Req() request: CounselorRequest, @Body() body: unknown) {
-    const payload = createSupportSlotSchema.omit({ counselorId: true }).parse(body);
+    const payload = createCounselorSupportSlotSchema.parse(body);
     return this.counselor.createMySlot(request.counselor!.counselorId!, payload);
   }
 
   @Patch("slots/:id")
   @UseGuards(CounselorAuthGuard)
   updateSlot(@Req() request: CounselorRequest, @Param("id") id: string, @Body() body: unknown) {
-    const payload = updateSupportSlotSchema.omit({ counselorId: true }).parse(body);
+    const payload = updateCounselorSupportSlotSchema.parse(body);
     return this.counselor.updateMySlot(request.counselor!.counselorId!, id, payload);
+  }
+
+  @Delete("slots/:id")
+  @UseGuards(CounselorAuthGuard)
+  deleteSlot(@Req() request: CounselorRequest, @Param("id") id: string) {
+    return this.counselor.deleteMySlot(request.counselor!.counselorId!, id);
   }
 
   @Get("support-requests")
@@ -69,8 +75,8 @@ export class CounselorController {
   @UseGuards(CounselorAuthGuard)
   updateRequest(@Req() request: CounselorRequest, @Param("id") id: string, @Body() body: unknown) {
     const payload = updateSupportRequestSchema.parse(body);
-    if (payload.status === "spam") {
-      throw new BadRequestException("咨询师端不能标记垃圾请求。");
+    if (payload.status === "spam" || payload.status === "viewed") {
+      throw new BadRequestException("咨询师端只支持确认或完成预约。");
     }
     return this.counselor.updateMyRequest(request.counselor!.counselorId!, id, payload.status);
   }

@@ -117,7 +117,7 @@
     {
       "path": "pages/receipt/index",
       "style": {
-        "navigationBarTitleText": "预约回执"
+        "navigationBarTitleText": "预约成功"
       }
     },
     {
@@ -130,12 +130,6 @@
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的"
-      }
-    },
-    {
-      "path": "pages/lookup/index",
-      "style": {
-        "navigationBarTitleText": "回执查询"
       }
     },
     {
@@ -175,9 +169,5 @@
     "navigationBarTitleText": "心理支持",
     "navigationBarBackgroundColor": "#F2F2F7",
     "backgroundColor": "#F2F2F7"
-    // #ifdef H5
-    ,
-    "navigationStyle": "custom"
-    // #endif
   }
 }

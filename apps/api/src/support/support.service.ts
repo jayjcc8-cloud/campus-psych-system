@@ -1,5 +1,5 @@
 import { BadRequestException, HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import type { AbuseStatus, SupportIssueType, SupportRequestStatus } from "@teacher-support/shared";
+import type { AbuseStatus, SupportIssueType, SupportRequestStatus, SupportSlotMode } from "@teacher-support/shared";
 import { normalizeOptional } from "@teacher-support/shared";
 import { contentFingerprint, createId, createReceiptCode, hashReceiptCode, stableHash } from "../common/security.js";
 import { DatabaseService } from "../database/database.service.js";
@@ -18,6 +18,7 @@ interface CreateRequestInput {
   remark?: string;
   anonymousSessionId: string;
   ipAddress: string;
+  userId: string;
 }
 
 @Injectable()
@@ -36,6 +37,7 @@ export class SupportService {
               counselors.updated_at,
               MIN(slots.start_time) FILTER (
                 WHERE slots.available = true
+                  AND slots.deleted_at IS NULL
                   AND slots.start_time > now()
                   AND COALESCE(slot_counts.active_count, 0) < slots.capacity
               ) AS next_available_time
@@ -83,7 +85,11 @@ export class SupportService {
       end_time: string;
       capacity: number;
       available: boolean;
+      deleted_at: string | null;
       active_count: string;
+      mode: SupportSlotMode;
+      location: string | null;
+      note: string | null;
     }>(
       `SELECT slots.id,
               slots.counselor_id,
@@ -91,12 +97,16 @@ export class SupportService {
               slots.start_time,
               slots.end_time,
               slots.capacity,
+              slots.mode,
+              slots.location,
+              slots.note,
               slots.available,
+              slots.deleted_at,
               COUNT(requests.id) FILTER (WHERE requests.status = ANY($1)) AS active_count
        FROM support_slots slots
        INNER JOIN counselors ON counselors.id = slots.counselor_id AND counselors.status = 'approved'
        LEFT JOIN support_requests requests ON requests.slot_id = slots.id
-       WHERE slots.available = true AND slots.start_time > now()${counselorWhere}
+       WHERE slots.available = true AND slots.deleted_at IS NULL AND slots.start_time > now()${counselorWhere}
        GROUP BY slots.id, counselors.display_name
        ORDER BY slots.start_time ASC`,
       params
@@ -110,6 +120,10 @@ export class SupportService {
         startTime: row.start_time,
         endTime: row.end_time,
         capacity: row.capacity,
+        mode: row.mode,
+        location: row.location ?? undefined,
+        note: row.note ?? undefined,
+        deletedAt: row.deleted_at ?? undefined,
         remainingCapacity: Math.max(row.capacity - Number(row.active_count), 0),
         available: row.available && Number(row.active_count) < row.capacity
       }))
@@ -125,7 +139,11 @@ export class SupportService {
       end_time: string;
       capacity: number;
       available: boolean;
+      deleted_at: string | null;
       active_count: string;
+      mode: SupportSlotMode;
+      location: string | null;
+      note: string | null;
     }>(
       `SELECT slots.id,
               slots.counselor_id,
@@ -133,7 +151,11 @@ export class SupportService {
               slots.start_time,
               slots.end_time,
               slots.capacity,
+              slots.mode,
+              slots.location,
+              slots.note,
               slots.available,
+              slots.deleted_at,
               COUNT(requests.id) FILTER (WHERE requests.status = ANY($1)) AS active_count
        FROM support_slots slots
        LEFT JOIN counselors ON counselors.id = slots.counselor_id
@@ -150,6 +172,10 @@ export class SupportService {
       startTime: row.start_time,
       endTime: row.end_time,
       capacity: row.capacity,
+      mode: row.mode,
+      location: row.location ?? undefined,
+      note: row.note ?? undefined,
+      deletedAt: row.deleted_at ?? undefined,
       activeCount: Number(row.active_count),
       remainingCapacity: Math.max(row.capacity - Number(row.active_count), 0),
       available: row.available
@@ -165,7 +191,9 @@ export class SupportService {
     const normalizedContactNote = normalizeOptional(input.contactNote);
     const normalizedAssessmentId = normalizeOptional(input.assessmentId);
     const normalizedIssueType = input.issueType ?? "other";
-    const fingerprint = contentFingerprint(`${input.counselorId}:${input.slotId}:${normalizedIssueType}:${normalizedRemark ?? ""}`);
+    const fingerprint = contentFingerprint(
+      `${input.counselorId}:${input.slotId}:${normalizedIssueType}:${normalizedRemark ?? ""}`
+    );
 
     await this.assertRateLimit({ anonymousSessionHash, ipHash, fingerprint });
 
@@ -193,6 +221,7 @@ export class SupportService {
          WHERE slots.id = $1
            AND slots.counselor_id = $3
            AND slots.available = true
+           AND slots.deleted_at IS NULL
            AND slots.start_time > now()
          GROUP BY slots.id`,
         [input.slotId, activeStatuses, input.counselorId]
@@ -208,15 +237,16 @@ export class SupportService {
 
       await client.query(
         `INSERT INTO support_requests (
-          id, receipt_code_hash, anonymous_session_hash, ip_hash, preferred_name, assessment_id, counselor_id, slot_id, issue_type,
+          id, receipt_code_hash, anonymous_session_hash, ip_hash, preferred_name, user_id, assessment_id, counselor_id, slot_id, issue_type,
           contact_email, contact_note, remark, status, abuse_status, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'new', 'clean', now(), now())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'new', 'clean', now(), now())`,
         [
           requestId,
           receiptCodeHash,
           anonymousSessionHash,
           ipHash,
           normalizedPreferredName ?? null,
+          input.userId,
           normalizedAssessmentId ?? null,
           input.counselorId,
           input.slotId,
@@ -234,18 +264,18 @@ export class SupportService {
       );
     });
 
-    return {
-      id: requestId,
-      receiptCode,
-      status: "new" as const
-    };
+    return this.getById(requestId);
+  }
+
+  async getById(id: string) {
+    const result = await this.database.query(requestSelectSql + " WHERE requests.id = $1", [id]);
+    return result.rows[0] ? mapRequest(result.rows[0]) : null;
   }
 
   async getByReceiptCode(receiptCode: string) {
-    const result = await this.database.query(
-      requestSelectSql + " WHERE requests.receipt_code_hash = $1",
-      [hashReceiptCode(receiptCode)]
-    );
+    const result = await this.database.query(requestSelectSql + " WHERE requests.receipt_code_hash = $1", [
+      hashReceiptCode(receiptCode)
+    ]);
 
     return result.rows[0] ? mapRequest(result.rows[0]) : null;
   }
@@ -279,6 +309,44 @@ export class SupportService {
     });
 
     return this.getByReceiptCode(receiptCode);
+  }
+
+  async listUserRequests(userId: string) {
+    const result = await this.database.query(
+      requestSelectSql + " WHERE requests.user_id = $1 ORDER BY requests.created_at DESC",
+      [userId]
+    );
+    return result.rows.map(mapRequest);
+  }
+
+  async withdrawUserRequest(userId: string, id: string) {
+    const result = await this.database.query<{ id: string; status: SupportRequestStatus }>(
+      "SELECT id, status FROM support_requests WHERE id = $1 AND user_id = $2",
+      [id, userId]
+    );
+    const request = result.rows[0];
+
+    if (!request) {
+      return null;
+    }
+
+    if (!activeStatuses.includes(request.status)) {
+      throw new BadRequestException("这个预约当前不能撤回。");
+    }
+
+    await this.database.transaction(async (client) => {
+      await client.query(
+        "UPDATE support_requests SET status = 'withdrawn', withdrawn_at = now(), updated_at = now() WHERE id = $1 AND user_id = $2",
+        [id, userId]
+      );
+      await client.query(
+        `INSERT INTO support_request_events (id, request_id, actor_type, actor_id, event_type, detail, created_at)
+         VALUES ($1, $2, 'anonymous_user', $3, 'request.withdrawn', 'User withdrew appointment by account.', now())`,
+        [createId(), id, userId]
+      );
+    });
+
+    return this.getById(id);
   }
 
   async listAdminRequests(status?: string) {
@@ -317,19 +385,42 @@ export class SupportService {
   }
 
   async createSlot(
-    input: { counselorId?: string; startTime: string; endTime: string; capacity: number; available?: boolean },
+    input: {
+      counselorId?: string;
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      mode?: SupportSlotMode;
+      location?: string;
+      note?: string;
+      available?: boolean;
+    },
     adminUserId?: string
   ) {
     this.assertSlotTime(input.startTime, input.endTime);
+    const mode = input.mode ?? "offline";
+    const location = normalizeOptional(input.location);
+    const note = normalizeOptional(input.note);
+    this.assertSlotDetails(mode, location);
 
     const id = createId();
     return this.database.transaction(async (client) => {
       const counselorId = input.counselorId ?? (await this.getDefaultCounselorId(client));
       const result = await client.query(
-        `INSERT INTO support_slots (id, counselor_id, start_time, end_time, capacity, available, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, now(), now())
-         RETURNING id, counselor_id, start_time, end_time, capacity, available`,
-        [id, counselorId, input.startTime, input.endTime, input.capacity, input.available ?? true]
+        `INSERT INTO support_slots (id, counselor_id, start_time, end_time, capacity, mode, location, note, available, created_at, updated_at)
+	         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+	         RETURNING id, counselor_id, start_time, end_time, capacity, mode, location, note, available, deleted_at`,
+        [
+          id,
+          counselorId,
+          input.startTime,
+          input.endTime,
+          input.capacity,
+          mode,
+          location ?? null,
+          note ?? null,
+          input.available ?? true
+        ]
       );
 
       if (adminUserId) {
@@ -346,7 +437,15 @@ export class SupportService {
 
   async updateSlot(
     id: string,
-    input: Partial<{ startTime: string; endTime: string; capacity: number; available: boolean }>,
+    input: Partial<{
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      mode: SupportSlotMode;
+      location: string;
+      note: string;
+      available: boolean;
+    }>,
     adminUserId?: string
   ) {
     const current = await this.database.query("SELECT * FROM support_slots WHERE id = $1", [id]);
@@ -356,19 +455,34 @@ export class SupportService {
 
     const nextStartTime = input.startTime ?? current.rows[0].start_time;
     const nextEndTime = input.endTime ?? current.rows[0].end_time;
+    const nextMode = input.mode ?? current.rows[0].mode ?? "offline";
+    const nextLocation = input.location !== undefined ? normalizeOptional(input.location) : current.rows[0].location;
     this.assertSlotTime(nextStartTime, nextEndTime);
+    this.assertSlotDetails(nextMode, nextLocation);
 
     return this.database.transaction(async (client) => {
       const result = await client.query(
         `UPDATE support_slots
-         SET start_time = COALESCE($2, start_time),
-             end_time = COALESCE($3, end_time),
-             capacity = COALESCE($4, capacity),
-             available = COALESCE($5, available),
-             updated_at = now()
-         WHERE id = $1
-         RETURNING id, start_time, end_time, capacity, available`,
-        [id, input.startTime ?? null, input.endTime ?? null, input.capacity ?? null, input.available ?? null]
+	         SET start_time = COALESCE($2, start_time),
+	             end_time = COALESCE($3, end_time),
+	             capacity = COALESCE($4, capacity),
+	             mode = COALESCE($5, mode),
+	             location = COALESCE($6, location),
+	             note = COALESCE($7, note),
+	             available = COALESCE($8, available),
+	             updated_at = now()
+	         WHERE id = $1
+	         RETURNING id, counselor_id, start_time, end_time, capacity, mode, location, note, available, deleted_at`,
+        [
+          id,
+          input.startTime ?? null,
+          input.endTime ?? null,
+          input.capacity ?? null,
+          input.mode ?? null,
+          input.location !== undefined ? normalizeOptional(input.location) : null,
+          input.note !== undefined ? normalizeOptional(input.note) : null,
+          input.available ?? null
+        ]
       );
 
       if (adminUserId) {
@@ -386,27 +500,96 @@ export class SupportService {
   async updateCounselorSlot(
     counselorId: string,
     id: string,
-    input: Partial<{ startTime: string; endTime: string; capacity: number; available: boolean }>
+    input: Partial<{
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      mode: SupportSlotMode;
+      location: string;
+      note: string;
+      available: boolean;
+    }>
   ) {
-    const current = await this.database.query("SELECT * FROM support_slots WHERE id = $1 AND counselor_id = $2", [id, counselorId]);
+    const current = await this.database.query(
+      "SELECT * FROM support_slots WHERE id = $1 AND counselor_id = $2 AND deleted_at IS NULL",
+      [id, counselorId]
+    );
     if (!current.rows[0]) {
       return null;
     }
 
     const nextStartTime = input.startTime ?? current.rows[0].start_time;
     const nextEndTime = input.endTime ?? current.rows[0].end_time;
+    const nextMode = input.mode ?? current.rows[0].mode ?? "offline";
+    const nextLocation = input.location !== undefined ? normalizeOptional(input.location) : current.rows[0].location;
     this.assertSlotTime(nextStartTime, nextEndTime);
+    this.assertSlotDetails(nextMode, nextLocation);
 
     const result = await this.database.query(
       `UPDATE support_slots
-       SET start_time = COALESCE($3, start_time),
-           end_time = COALESCE($4, end_time),
-           capacity = COALESCE($5, capacity),
-           available = COALESCE($6, available),
+	       SET start_time = COALESCE($3, start_time),
+	           end_time = COALESCE($4, end_time),
+	           capacity = COALESCE($5, capacity),
+	           mode = COALESCE($6, mode),
+	           location = COALESCE($7, location),
+	           note = COALESCE($8, note),
+	           available = COALESCE($9, available),
+	           updated_at = now()
+	       WHERE id = $1 AND counselor_id = $2
+	       RETURNING id, counselor_id, start_time, end_time, capacity, mode, location, note, available, deleted_at`,
+      [
+        id,
+        counselorId,
+        input.startTime ?? null,
+        input.endTime ?? null,
+        input.capacity ?? null,
+        input.mode ?? null,
+        input.location !== undefined ? normalizeOptional(input.location) : null,
+        input.note !== undefined ? normalizeOptional(input.note) : null,
+        input.available ?? null
+      ]
+    );
+
+    return result.rows[0] ? mapSlot(result.rows[0]) : null;
+  }
+
+  async deleteSlot(id: string, adminUserId?: string) {
+    return this.database.transaction(async (client) => {
+      const result = await client.query(
+        `UPDATE support_slots
+         SET available = false,
+             deleted_at = COALESCE(deleted_at, now()),
+             updated_at = now()
+         WHERE id = $1
+         RETURNING id, counselor_id, start_time, end_time, capacity, mode, location, note, available, deleted_at`,
+        [id]
+      );
+
+      if (!result.rows[0]) {
+        return null;
+      }
+
+      if (adminUserId) {
+        await client.query(
+          `INSERT INTO audit_logs (id, admin_user_id, action, target_type, target_id, detail, created_at)
+           VALUES ($1, $2, 'support_slot.delete', 'support_slot', $3, 'soft_delete', now())`,
+          [createId(), adminUserId, id]
+        );
+      }
+
+      return mapSlot(result.rows[0]);
+    });
+  }
+
+  async deleteCounselorSlot(counselorId: string, id: string) {
+    const result = await this.database.query(
+      `UPDATE support_slots
+       SET available = false,
+           deleted_at = COALESCE(deleted_at, now()),
            updated_at = now()
-       WHERE id = $1 AND counselor_id = $2
-       RETURNING id, counselor_id, start_time, end_time, capacity, available`,
-      [id, counselorId, input.startTime ?? null, input.endTime ?? null, input.capacity ?? null, input.available ?? null]
+       WHERE id = $1 AND counselor_id = $2 AND deleted_at IS NULL
+       RETURNING id, counselor_id, start_time, end_time, capacity, mode, location, note, available, deleted_at`,
+      [id, counselorId]
     );
 
     return result.rows[0] ? mapSlot(result.rows[0]) : null;
@@ -466,6 +649,12 @@ export class SupportService {
     }
   }
 
+  private assertSlotDetails(mode: SupportSlotMode, location?: string | null) {
+    if ((mode === "offline" || mode === "hybrid") && !location?.trim()) {
+      throw new BadRequestException("线下或混合预约需要填写地点。");
+    }
+  }
+
   private async getDefaultCounselorId(client: PoolClient) {
     const result = await client.query<{ id: string }>(
       "SELECT id FROM counselors WHERE status = 'approved' ORDER BY sort_order ASC, created_at ASC LIMIT 1"
@@ -479,13 +668,17 @@ export class SupportService {
 }
 
 const requestSelectSql = `
-SELECT requests.id,
-       requests.counselor_id,
-       counselors.display_name AS counselor_name,
-       requests.slot_id,
-       slots.start_time AS slot_start_time,
-       slots.end_time AS slot_end_time,
-       requests.preferred_name,
+	SELECT requests.id,
+	       requests.user_id,
+	       requests.counselor_id,
+	       counselors.display_name AS counselor_name,
+	       requests.slot_id,
+	       slots.start_time AS slot_start_time,
+	       slots.end_time AS slot_end_time,
+	       slots.mode,
+	       slots.location,
+	       slots.note,
+	       requests.preferred_name,
        requests.assessment_id,
        requests.issue_type,
        requests.contact_email,
@@ -494,6 +687,9 @@ SELECT requests.id,
        requests.status,
        requests.abuse_status,
        assessments.risk_level AS assessment_risk_level,
+       assessments.score_summary AS assessment_score_summary,
+       assessments.scale_version AS assessment_scale_version,
+       assessments.source_profile AS assessment_source_profile,
        requests.created_at,
        requests.updated_at,
        requests.withdrawn_at
@@ -506,14 +702,21 @@ LEFT JOIN counselors ON counselors.id = requests.counselor_id
 function mapRequest(row: any) {
   return {
     id: row.id,
+    userId: row.user_id ?? undefined,
     preferredName: row.preferred_name ?? undefined,
     assessmentId: row.assessment_id ?? undefined,
     assessmentRiskLevel: row.assessment_risk_level ?? undefined,
+    assessmentScoreSummary: normalizeJsonArray(row.assessment_score_summary),
+    assessmentScaleVersion: row.assessment_scale_version ?? undefined,
+    assessmentSourceProfile: row.assessment_source_profile ?? undefined,
     counselorId: row.counselor_id ?? undefined,
     counselorName: row.counselor_name ?? undefined,
     slotId: row.slot_id,
     slotStartTime: row.slot_start_time,
     slotEndTime: row.slot_end_time,
+    mode: row.mode ?? undefined,
+    location: row.location ?? undefined,
+    note: row.note ?? undefined,
     issueType: row.issue_type,
     contactEmail: row.contact_email ?? undefined,
     contactNote: row.contact_note ?? undefined,
@@ -526,6 +729,21 @@ function mapRequest(row: any) {
   };
 }
 
+function normalizeJsonArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 function mapSlot(row: any) {
   return {
     id: row.id,
@@ -534,6 +752,11 @@ function mapSlot(row: any) {
     startTime: row.start_time,
     endTime: row.end_time,
     capacity: row.capacity,
+    mode: row.mode ?? "offline",
+    location: row.location ?? undefined,
+    note: row.note ?? undefined,
+    activeCount: Number(row.active_count ?? 0),
+    deletedAt: row.deleted_at ?? undefined,
     available: row.available
   };
 }

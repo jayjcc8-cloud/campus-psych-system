@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
+import type { SupportSlotMode } from "@teacher-support/shared";
 import { hashPassword, signAdminToken, verifyPassword } from "../common/security.js";
 import { DatabaseService } from "../database/database.service.js";
 import { SupportService } from "../support/support.service.js";
@@ -145,16 +146,62 @@ export class CounselorService {
     return result.rows[0] ? mapCounselor(result.rows[0]) : null;
   }
 
-  listMySlots(counselorId: string) {
-    return this.support.listSlots(counselorId);
+  async listMySlots(counselorId: string) {
+    const result = await this.database.query(
+      `SELECT slots.id,
+              slots.counselor_id,
+              slots.start_time,
+              slots.end_time,
+              slots.capacity,
+              slots.mode,
+              slots.location,
+              slots.note,
+              slots.available,
+              slots.deleted_at,
+              COUNT(requests.id) FILTER (WHERE requests.status = ANY($2)) AS active_count
+       FROM support_slots slots
+       LEFT JOIN support_requests requests ON requests.slot_id = slots.id
+       WHERE slots.counselor_id = $1
+       GROUP BY slots.id
+       ORDER BY slots.start_time ASC`,
+      [counselorId, ["new", "viewed", "noted"]]
+    );
+    return result.rows.map(mapSlot);
   }
 
-  createMySlot(counselorId: string, input: { startTime: string; endTime: string; capacity: number; available?: boolean }) {
+  createMySlot(
+    counselorId: string,
+    input: {
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      mode?: SupportSlotMode;
+      location?: string;
+      note?: string;
+      available?: boolean;
+    }
+  ) {
     return this.support.createSlot({ ...input, counselorId });
   }
 
-  updateMySlot(counselorId: string, id: string, input: Partial<{ startTime: string; endTime: string; capacity: number; available: boolean }>) {
+  updateMySlot(
+    counselorId: string,
+    id: string,
+    input: Partial<{
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      mode: SupportSlotMode;
+      location: string;
+      note: string;
+      available: boolean;
+    }>
+  ) {
     return this.support.updateCounselorSlot(counselorId, id, input);
+  }
+
+  deleteMySlot(counselorId: string, id: string) {
+    return this.support.deleteCounselorSlot(counselorId, id);
   }
 
   async listMyRequests(counselorId: string) {
@@ -165,7 +212,7 @@ export class CounselorService {
     return result.rows.map(mapRequest);
   }
 
-  async updateMyRequest(counselorId: string, id: string, status: "viewed" | "noted" | "closed") {
+  async updateMyRequest(counselorId: string, id: string, status: "noted" | "closed") {
     const existing = await this.database.query<{ id: string }>(
       "SELECT id FROM support_requests WHERE id = $1 AND counselor_id = $2",
       [id, counselorId]
@@ -174,7 +221,10 @@ export class CounselorService {
       throw new BadRequestException("没有找到这条请求。");
     }
 
-    await this.database.query("UPDATE support_requests SET status = $1, updated_at = now() WHERE id = $2", [status, id]);
+    await this.database.query("UPDATE support_requests SET status = $1, updated_at = now() WHERE id = $2", [
+      status,
+      id
+    ]);
     return this.listMyRequests(counselorId);
   }
 }
@@ -195,13 +245,17 @@ function buildUsernameFromEmail(email: string) {
 }
 
 const supportRequestSql = `
-SELECT requests.id,
-       requests.counselor_id,
-       counselors.display_name AS counselor_name,
-       requests.slot_id,
-       slots.start_time AS slot_start_time,
-       slots.end_time AS slot_end_time,
-       requests.preferred_name,
+	SELECT requests.id,
+	       requests.user_id,
+	       requests.counselor_id,
+	       counselors.display_name AS counselor_name,
+	       requests.slot_id,
+	       slots.start_time AS slot_start_time,
+	       slots.end_time AS slot_end_time,
+	       slots.mode,
+	       slots.location,
+	       slots.note,
+	       requests.preferred_name,
        requests.assessment_id,
        requests.issue_type,
        requests.contact_email,
@@ -210,6 +264,9 @@ SELECT requests.id,
        requests.status,
        requests.abuse_status,
        assessments.risk_level AS assessment_risk_level,
+       assessments.score_summary AS assessment_score_summary,
+       assessments.scale_version AS assessment_scale_version,
+       assessments.source_profile AS assessment_source_profile,
        requests.created_at,
        requests.updated_at,
        requests.withdrawn_at
@@ -235,14 +292,21 @@ function mapCounselor(row: any) {
 function mapRequest(row: any) {
   return {
     id: row.id,
+    userId: row.user_id ?? undefined,
     preferredName: row.preferred_name ?? undefined,
     assessmentId: row.assessment_id ?? undefined,
     assessmentRiskLevel: row.assessment_risk_level ?? undefined,
+    assessmentScoreSummary: normalizeJsonArray(row.assessment_score_summary),
+    assessmentScaleVersion: row.assessment_scale_version ?? undefined,
+    assessmentSourceProfile: row.assessment_source_profile ?? undefined,
     counselorId: row.counselor_id ?? undefined,
     counselorName: row.counselor_name ?? undefined,
     slotId: row.slot_id,
     slotStartTime: row.slot_start_time,
     slotEndTime: row.slot_end_time,
+    mode: row.mode ?? undefined,
+    location: row.location ?? undefined,
+    note: row.note ?? undefined,
     issueType: row.issue_type,
     contactEmail: row.contact_email ?? undefined,
     contactNote: row.contact_note ?? undefined,
@@ -252,5 +316,37 @@ function mapRequest(row: any) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     withdrawnAt: row.withdrawn_at ?? undefined
+  };
+}
+
+function normalizeJsonArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function mapSlot(row: any) {
+  return {
+    id: row.id,
+    counselorId: row.counselor_id ?? undefined,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    capacity: row.capacity,
+    mode: row.mode ?? "offline",
+    location: row.location ?? undefined,
+    note: row.note ?? undefined,
+    activeCount: Number(row.active_count ?? 0),
+    remainingCapacity: Math.max(Number(row.capacity) - Number(row.active_count ?? 0), 0),
+    available: row.available,
+    deletedAt: row.deleted_at ?? undefined
   };
 }

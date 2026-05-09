@@ -110,23 +110,31 @@ export class DatabaseService implements OnModuleDestroy {
     );
     const defaultCounselorId = defaultCounselor.rows[0]?.id;
     if (defaultCounselorId) {
-      await this.pool.query("UPDATE support_slots SET counselor_id = $1 WHERE counselor_id IS NULL", [defaultCounselorId]);
-      await this.pool.query("UPDATE support_requests SET counselor_id = $1 WHERE counselor_id IS NULL", [defaultCounselorId]);
+      await this.pool.query("UPDATE support_slots SET counselor_id = $1 WHERE counselor_id IS NULL", [
+        defaultCounselorId
+      ]);
+      await this.pool.query("UPDATE support_requests SET counselor_id = $1 WHERE counselor_id IS NULL", [
+        defaultCounselorId
+      ]);
+      await this.pool.query("UPDATE support_slots SET mode = 'offline' WHERE mode IS NULL");
+      await this.pool.query(
+        "UPDATE support_slots SET location = '心理支持中心 201' WHERE location IS NULL OR btrim(location) = ''"
+      );
     }
 
     const futureCount = await this.pool.query<{ count: string }>(
-      "SELECT COUNT(*) AS count FROM support_slots WHERE available = true AND start_time > now()"
+      "SELECT COUNT(*) AS count FROM support_slots WHERE available = true AND deleted_at IS NULL AND start_time > now()"
     );
     if (Number(futureCount.rows[0]?.count ?? 0) > 0) {
       return;
     }
 
     await this.pool.query(
-      `INSERT INTO support_slots (id, counselor_id, start_time, end_time, capacity, available, created_at, updated_at)
-       VALUES
-       (gen_random_uuid(), $1, now() + interval '1 day', now() + interval '1 day 1 hour', 4, true, now(), now()),
-       (gen_random_uuid(), $1, now() + interval '2 days', now() + interval '2 days 1 hour', 4, true, now(), now()),
-       (gen_random_uuid(), $1, now() + interval '3 days', now() + interval '3 days 1 hour', 4, true, now(), now())`,
+      `INSERT INTO support_slots (id, counselor_id, start_time, end_time, capacity, mode, location, note, available, created_at, updated_at)
+	       VALUES
+	       (gen_random_uuid(), $1, now() + interval '1 day', now() + interval '1 day 1 hour', 4, 'offline', '心理支持中心 201', '请提前 10 分钟到达。', true, now(), now()),
+	       (gen_random_uuid(), $1, now() + interval '2 days', now() + interval '2 days 1 hour', 4, 'offline', '心理支持中心 201', '请提前 10 分钟到达。', true, now(), now()),
+	       (gen_random_uuid(), $1, now() + interval '3 days', now() + interval '3 days 1 hour', 4, 'online', '预约确认后发送会议说明', '适合不方便到场时使用。', true, now(), now())`,
       [defaultCounselorId]
     );
   }
@@ -157,10 +165,19 @@ CREATE TABLE IF NOT EXISTS support_slots (
   start_time TIMESTAMPTZ NOT NULL,
   end_time TIMESTAMPTZ NOT NULL,
   capacity INTEGER NOT NULL CHECK (capacity > 0),
+  mode TEXT NOT NULL DEFAULT 'offline' CHECK (mode IN ('offline', 'online', 'hybrid')),
+  location TEXT,
+  note TEXT,
   available BOOLEAN NOT NULL DEFAULT true,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE support_slots ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'offline';
+ALTER TABLE support_slots ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE support_slots ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE support_slots ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS counselor_accounts (
   id UUID PRIMARY KEY,
@@ -250,6 +267,7 @@ CREATE TABLE IF NOT EXISTS support_requests (
   anonymous_session_hash TEXT NOT NULL,
   ip_hash TEXT NOT NULL,
   preferred_name TEXT,
+  user_id UUID REFERENCES privacy_user_accounts(id),
   assessment_id UUID REFERENCES assessments(id),
   counselor_id UUID REFERENCES counselors(id),
   slot_id UUID NOT NULL REFERENCES support_slots(id),
@@ -269,9 +287,11 @@ CREATE INDEX IF NOT EXISTS idx_support_requests_session_created ON support_reque
 CREATE INDEX IF NOT EXISTS idx_support_requests_ip_created ON support_requests(ip_hash, created_at DESC);
 
 ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS preferred_name TEXT;
+ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES privacy_user_accounts(id);
 ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS assessment_id UUID REFERENCES assessments(id);
 ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS counselor_id UUID REFERENCES counselors(id);
 CREATE INDEX IF NOT EXISTS idx_support_requests_counselor_status ON support_requests(counselor_id, status);
+CREATE INDEX IF NOT EXISTS idx_support_requests_user_created ON support_requests(user_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS support_request_events (
   id UUID PRIMARY KEY,

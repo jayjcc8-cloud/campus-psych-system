@@ -6,16 +6,13 @@
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
     "build:mp-weixin": "uni build -p mp-weixin",
-    "dev:h5": "uni -p h5",
-    "build:h5": "uni build -p h5",
     "check": "vue-tsc --noEmit",
     "lint": "vue-tsc --noEmit",
-    "build": "pnpm build:mp-weixin && pnpm build:h5"
+    "build": "pnpm build:mp-weixin"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4020420240722002",
     "@dcloudio/uni-components": "3.0.0-4020420240722002",
-    "@dcloudio/uni-h5": "3.0.0-4020420240722002",
     "@dcloudio/uni-mp-weixin": "3.0.0-4020420240722002",
     "@teacher-support/shared": "workspace:*",
     "vue": "^3.4.31",

@@ -1,93 +1,124 @@
 <template>
   <view class="page">
-    <!-- #ifdef H5 -->
-    <view class="h5-flow-header">
-      <view>
-        <text class="h5-flow-title">我的预约</text>
-        <text class="h5-flow-subtitle">查看本机回执、预约状态和后续处理</text>
-      </view>
-      <button class="h5-link-button" @click="go('/pages/index/index')">返回首页</button>
-    </view>
-    <!-- #endif -->
-
     <!-- #ifdef MP-WEIXIN -->
     <text class="page-title">我的预约</text>
     <!-- #endif -->
 
-    <view class="segment">
-      <button class="segment-item" :class="{ 'segment-active': tab === 'active' }" @click="tab = 'active'">
-        即将开始
-      </button>
-      <button class="segment-item" :class="{ 'segment-active': tab === 'history' }" @click="tab = 'history'">
-        历史记录
-      </button>
+    <view v-if="!hasLogin" class="card empty">
+      <text class="label-text">登录后查看预约</text>
+      <text class="muted">预约记录会同步到你的邮箱账号，换设备登录后也能查看。</text>
+      <button class="compact-button empty-action" @click="go('/pages/login/index')">去登录</button>
     </view>
 
-    <view class="stack">
-      <text v-if="loading" class="muted">正在同步预约状态...</text>
+    <template v-else>
+      <view class="segment">
+        <button class="segment-item" :class="{ 'segment-active': tab === 'active' }" @click="tab = 'active'">
+          即将开始
+        </button>
+        <button class="segment-item" :class="{ 'segment-active': tab === 'history' }" @click="tab = 'history'">
+          历史记录
+        </button>
+      </view>
 
-      <view v-for="item in visibleAppointments" :key="item.receipt.receiptCode" class="appointment-card interactive" @click="open(item.receipt)">
-        <view class="row-between">
-          <text class="pill" :class="isActiveStatus(item.detail?.status) ? 'pill-soft' : ''">
-            {{ item.detail ? requestStatusLabels[item.detail.status] : "待查看状态" }}
-          </text>
-          <text class="muted">{{ item.detail?.slotStartTime ? distanceHint(item.detail.slotStartTime) : formatCreatedAt(item.receipt.createdAt) }}</text>
-        </view>
-        <view class="appointment-main">
-          <view class="avatar avatar-small">{{ (item.detail?.counselorName || item.receipt.title || "咨").slice(0, 1) }}</view>
-          <view>
-            <text class="label-text">{{ item.detail?.counselorName || item.receipt.title }}</text>
-            <text class="copy">{{ item.detail?.slotStartTime ? formatAppointmentTime(item.detail.slotStartTime) : "时间待查询" }}</text>
-            <text class="muted">线下/线上支持 · 回执 {{ item.receipt.receiptCode }}</text>
+      <view class="stack">
+        <text v-if="loading" class="muted">正在同步预约状态...</text>
+
+        <view
+          v-for="item in visibleAppointments"
+          :key="item.id"
+          class="appointment-card interactive"
+          @click="open(item)"
+        >
+          <view class="row-between">
+            <text class="pill" :class="isActiveStatus(item.status) ? 'pill-soft' : ''">
+              {{ requestStatusLabels[item.status] }}
+            </text>
+            <text class="muted">
+              {{
+                item.slotStartTime ? distanceHint(item.slotStartTime) : formatCreatedAt(item.createdAt)
+              }}
+            </text>
+          </view>
+          <view class="appointment-main">
+            <view class="avatar avatar-small">{{ (item.counselorName || "咨").slice(0, 1) }}</view>
+            <view>
+              <text class="label-text">{{ item.counselorName || "咨询师" }}</text>
+              <text class="copy">{{ formatAppointmentTime(item.slotStartTime, item.slotEndTime) }}</text>
+              <text class="muted">
+                {{ item.mode ? supportSlotModeLabels[item.mode] : "预约方式待确认" }} ·
+                {{ item.location || item.note || "地点待确认" }}
+              </text>
+              <text v-if="item.assessmentId" class="muted">
+                测评摘要：{{ assessmentSummaryText(item) }}
+              </text>
+            </view>
+          </view>
+          <view class="appointment-actions">
+            <button class="button-light compact-button" @click.stop="open(item)">详情</button>
+            <button
+              v-if="isActiveStatus(item.status)"
+              class="button-soft compact-button"
+              :disabled="withdrawingId === item.id"
+              @click.stop="withdraw(item)"
+            >
+              {{ withdrawingId === item.id ? "处理中" : "撤回预约" }}
+            </button>
           </view>
         </view>
-        <text v-if="item.error" class="error">{{ item.error }}</text>
-        <view class="appointment-actions">
-          <button class="button-light compact-button" @click.stop="open(item.receipt)">详情</button>
-          <button class="button-soft compact-button" @click.stop="openLookup">手动查询</button>
-        </view>
-      </view>
 
-      <view v-if="!loading && visibleAppointments.length === 0" class="card empty">
-        <text class="label-text">{{ appointmentItems.length ? "当前分组没有记录" : "还没有预约" }}</text>
-        <text class="muted">{{ appointmentItems.length ? "可以切换到另一个分组查看。" : "从首页开始预约后，回执会自动保存在这里。" }}</text>
-        <button v-if="!appointmentItems.length" class="compact-button empty-action" @click="go('/pages/counselors/index')">开始预约</button>
+        <view v-if="!loading && visibleAppointments.length === 0" class="card empty">
+          <text class="label-text">{{ appointments.length ? "当前分组没有记录" : "还没有预约" }}</text>
+          <text class="muted">
+            {{
+              appointments.length ? "可以切换到另一个分组查看。" : "从首页开始预约后，会自动同步到这里。"
+            }}
+          </text>
+          <button
+            v-if="!appointments.length"
+            class="compact-button empty-action"
+            @click="go('/pages/counselors/index')"
+          >
+            开始预约
+          </button>
+        </view>
+
+        <text v-if="error" class="error">{{ error }}</text>
       </view>
-    </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { onShow } from "@dcloudio/uni-app";
 import { computed, ref } from "vue";
-import { requestStatusLabels, type SupportRequestStatus, type SupportRequestSummary } from "@teacher-support/shared";
-import { getRequestByReceipt } from "../../api/client";
+import {
+  requestStatusLabels,
+  assessmentRiskLabels,
+  supportSlotModeLabels,
+  type SupportRequestStatus,
+  type SupportRequestSummary
+} from "@teacher-support/shared";
+import { getUserToken, listUserAppointments, withdrawUserAppointment } from "../../api/client";
 import { openPage } from "../../utils/navigation";
-import { listLocalReceipts, type LocalReceipt } from "../../utils/receipts";
-
-interface AppointmentItem {
-  receipt: LocalReceipt;
-  detail: SupportRequestSummary | null;
-  error?: string;
-}
 
 const tab = ref<"active" | "history">("active");
 const loading = ref(false);
-const appointmentItems = ref<AppointmentItem[]>([]);
-const activeAppointments = computed(() => appointmentItems.value.filter((item) => isActiveStatus(item.detail?.status)));
-const historyAppointments = computed(() => appointmentItems.value.filter((item) => !isActiveStatus(item.detail?.status)));
-const visibleAppointments = computed(() => (tab.value === "active" ? activeAppointments.value : historyAppointments.value));
+const withdrawingId = ref("");
+const error = ref("");
+const hasLogin = ref(false);
+const appointments = ref<SupportRequestSummary[]>([]);
+const activeAppointments = computed(() => appointments.value.filter((item) => isActiveStatus(item.status)));
+const historyAppointments = computed(() => appointments.value.filter((item) => !isActiveStatus(item.status)));
+const visibleAppointments = computed(() =>
+  tab.value === "active" ? activeAppointments.value : historyAppointments.value
+);
 
 function isActiveStatus(status?: SupportRequestStatus) {
   return !status || ["new", "viewed", "noted"].includes(status);
 }
 
-function open(item: LocalReceipt) {
-  uni.navigateTo({ url: `/pages/lookup/index?code=${encodeURIComponent(item.receiptCode)}` });
-}
-
-function openLookup() {
-  uni.navigateTo({ url: "/pages/lookup/index" });
+function open(item: SupportRequestSummary) {
+  openPage(`/pages/receipt/index?id=${encodeURIComponent(item.id)}`);
 }
 
 function go(url: string) {
@@ -99,9 +130,22 @@ function formatCreatedAt(value: string) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-function formatAppointmentTime(value: string) {
-  const date = new Date(value);
-  return `${date.getMonth() + 1}/${date.getDate()} ${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()]} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+function formatAppointmentTime(start?: string, end?: string) {
+  if (!start) return "时间待确认";
+  const date = new Date(start);
+  const endDate = end ? new Date(end) : null;
+  const startText = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const endText = endDate ? endDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  return `${date.getMonth() + 1}/${date.getDate()} ${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()]} ${endText ? `${startText}-${endText}` : startText}`;
+}
+
+function assessmentSummaryText(item: SupportRequestSummary) {
+  const risk = item.assessmentRiskLevel ? assessmentRiskLabels[item.assessmentRiskLevel] : "已关联";
+  const scores = item.assessmentScoreSummary ?? [];
+  if (!scores.length) {
+    return risk;
+  }
+  return `${risk} · ${scores.map((score) => `${score.label}${score.rawScore}/${score.maxScore}`).join(" · ")}`;
 }
 
 function distanceHint(value: string) {
@@ -111,26 +155,50 @@ function distanceHint(value: string) {
   return `${days}天后`;
 }
 
-async function refreshReceipts() {
-  const receipts = listLocalReceipts().filter((item) => item.kind === "support_request");
+async function withdraw(item: SupportRequestSummary) {
+  const confirmed = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: "撤回预约",
+      content: "撤回后这次预约将不再保留有效状态，如需支持可以重新选择时间。",
+      confirmText: "撤回",
+      cancelText: "再看看",
+      success: (result) => resolve(Boolean(result.confirm)),
+      fail: () => resolve(false)
+    });
+  });
+  if (!confirmed) return;
+
+  withdrawingId.value = item.id;
+  error.value = "";
+  try {
+    await withdrawUserAppointment(item.id);
+    await refreshAppointments();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "撤回暂时没有成功";
+  } finally {
+    withdrawingId.value = "";
+  }
+}
+
+async function refreshAppointments() {
+  hasLogin.value = Boolean(getUserToken());
+  if (!hasLogin.value) {
+    appointments.value = [];
+    return;
+  }
+
   loading.value = true;
-  appointmentItems.value = await Promise.all(
-    receipts.map(async (receipt) => {
-      try {
-        return { receipt, detail: await getRequestByReceipt(receipt.receiptCode) };
-      } catch (err) {
-        return { receipt, detail: null, error: err instanceof Error ? err.message : "状态暂时不可用" };
-      }
-    })
-  );
-  loading.value = false;
+  error.value = "";
+  try {
+    appointments.value = await listUserAppointments();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "预约状态暂时不可用";
+  } finally {
+    loading.value = false;
+  }
 }
 
 function syncRequestsChrome() {
-  // #ifdef H5
-  uni.hideTabBar();
-  // #endif
-
   // #ifdef MP-WEIXIN
   uni.showTabBar();
   // #endif
@@ -138,7 +206,7 @@ function syncRequestsChrome() {
 
 function handleShow() {
   syncRequestsChrome();
-  void refreshReceipts();
+  void refreshAppointments();
 }
 
 onShow(handleShow);

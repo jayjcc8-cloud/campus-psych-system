@@ -43,6 +43,7 @@ export class SupportController {
       contactEmail: payload.contactEmail || undefined,
       contactNote: payload.contactNote || undefined,
       remark: payload.remark || undefined,
+      userId: request.user!.userId!,
       anonymousSessionId: getAnonymousSessionId(request),
       ipAddress: getIpAddress(request)
     });

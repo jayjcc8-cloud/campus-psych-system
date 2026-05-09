@@ -83,7 +83,13 @@ async function main() {
       remark: `Smoke预约-${unique}`
     }
   });
-  await request(`/support/requests/${encodeURIComponent(supportRequest.receiptCode)}`);
+  if (!supportRequest.id || supportRequest.receiptCode) {
+    throw new Error("Support request should return account appointment id without user-facing receiptCode");
+  }
+  const appointments = await request("/user/appointments", { token: userLogin.token });
+  if (!appointments.find((item) => item.id === supportRequest.id)) {
+    throw new Error("Created appointment missing from user appointments");
+  }
 
   await request("/counselor/auth/register", {
     method: "POST",

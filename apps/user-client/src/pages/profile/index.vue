@@ -1,19 +1,13 @@
 <template>
   <view class="page">
-    <!-- #ifdef H5 -->
-    <view class="h5-flow-header">
-      <view>
-        <text class="h5-flow-title">账号与设置</text>
-        <text class="h5-flow-subtitle">统一管理登录状态、隐私说明和安全入口</text>
-      </view>
-      <button class="h5-link-button" @click="go('/pages/index/index')">返回首页</button>
-    </view>
-    <!-- #endif -->
-
     <view class="hero hero-compact">
       <text class="eyebrow">我的</text>
       <text class="title">{{ userProfile ? `${userProfile.preferredName}，欢迎回来` : "未登录" }}</text>
-      <text class="copy">{{ userProfile ? "账号与隐私设置集中在这里。" : "登录后可以管理自己的预约回执和账号信息。" }}</text>
+      <text class="copy">
+        {{
+          userProfile ? "账号与隐私设置集中在这里。" : "登录后可以管理自己的预约和账号信息。"
+        }}
+      </text>
     </view>
 
     <view class="stack">
@@ -27,7 +21,7 @@
         <view class="settings-cell interactive" @click="go('/pages/requests/index')">
           <view>
             <text class="label-text">我的预约</text>
-            <text class="muted">查看预约回执和处理状态</text>
+            <text class="muted">查看预约状态和确认信息</text>
           </view>
           <text class="chevron">›</text>
         </view>
@@ -57,7 +51,9 @@
           </view>
           <view class="verify-actions">
             <button class="button-light compact-button" @click="sendVerification">获取</button>
-            <button class="button-soft compact-button" :disabled="!verificationToken" @click="confirmVerification">验证</button>
+            <button class="button-soft compact-button" :disabled="!verificationToken" @click="confirmVerification">
+              验证
+            </button>
           </view>
         </view>
         <view class="settings-cell interactive" @click="go('/pages/privacy/index')">
@@ -86,7 +82,7 @@
         <view v-if="userProfile" class="settings-cell interactive danger-cell" @click="confirmLogout">
           <view>
             <text class="label-text">退出登录</text>
-            <text class="muted">本机预约回执不会被删除</text>
+            <text class="muted">退出后需要重新登录查看预约</text>
           </view>
           <text class="chevron">›</text>
         </view>
@@ -146,7 +142,7 @@ async function refreshUser() {
 function confirmLogout() {
   uni.showModal({
     title: "退出登录",
-    content: "退出后会回到统一登录页，本机预约回执不会被删除。",
+    content: "退出后会回到统一登录页，预约记录仍保存在你的邮箱账号中。",
     confirmText: "退出",
     cancelText: "取消",
     success(result) {
@@ -196,10 +192,6 @@ function previewSplash() {
 }
 
 function syncProfileChrome() {
-  // #ifdef H5
-  uni.hideTabBar();
-  // #endif
-
   // #ifdef MP-WEIXIN
   uni.showTabBar();
   // #endif

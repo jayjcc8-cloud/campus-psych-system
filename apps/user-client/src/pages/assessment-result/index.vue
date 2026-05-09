@@ -16,6 +16,23 @@
         </text>
       </view>
 
+      <view class="card radar-card">
+        <view class="row-between">
+          <view>
+            <text class="label">量化雷达图</text>
+            <text class="muted">分值越高，代表该维度越需要关注。</text>
+          </view>
+          <text class="mini-tag">0-100</text>
+        </view>
+        <canvas id="assessmentRadar" canvas-id="assessmentRadar" class="radar-canvas" />
+        <view class="radar-legend">
+          <view v-for="item in radarItems" :key="item.key" class="radar-legend-item">
+            <text class="radar-dot" :style="{ background: item.color }"></text>
+            <text>{{ item.label }} {{ item.value }}</text>
+          </view>
+        </view>
+      </view>
+
       <view class="grid">
         <view v-for="score in displayScores" :key="score.scale" class="card stack-small">
           <view class="row-between">
@@ -36,7 +53,7 @@
         <view v-for="item in resultRecommendations" :key="item" class="recommendation-item">
           <text>{{ item }}</text>
         </view>
-        <button @click="goToRequest">带着这份结果继续求助</button>
+        <button @click="goToRequest">带着这份结果预约咨询师</button>
         <button class="button-soft" @click="go('/pages/emergency/index')">查看紧急支持资源</button>
         <button class="button-ghost" @click="go('/pages/requests/index')">回到我的</button>
       </view>
@@ -50,9 +67,14 @@
 </template>
 
 <script setup lang="ts">
-import { onLoad } from "@dcloudio/uni-app";
-import { computed, ref } from "vue";
-import { assessmentRiskLabels, assessmentScaleLabels, type AssessmentScaleScore, type AssessmentSummary } from "@teacher-support/shared";
+import { onLoad, onReady } from "@dcloudio/uni-app";
+import { computed, nextTick, ref, watch } from "vue";
+import {
+  assessmentRiskLabels,
+  assessmentScaleLabels,
+  type AssessmentScaleScore,
+  type AssessmentSummary
+} from "@teacher-support/shared";
 import { getAssessmentByReceipt } from "../../api/client";
 import { openPage } from "../../utils/navigation";
 
@@ -61,6 +83,32 @@ const report = ref<AssessmentSummary | null>(null);
 const error = ref("");
 
 const riskLabel = computed(() => (report.value ? assessmentRiskLabels[report.value.riskLevel] : ""));
+const radarItems = computed(() => {
+  const scoreByScale = new Map(displayScores.value.map((score) => [score.scale, score]));
+  const who5 = scoreByScale.get("who5");
+  const phq9 = scoreByScale.get("phq9");
+  const gad7 = scoreByScale.get("gad7");
+  return [
+    {
+      key: "who5",
+      label: "幸福感不足",
+      value: Math.max(0, Math.min(100, 100 - (who5?.normalizedScore ?? 0))),
+      color: "#10b981"
+    },
+    {
+      key: "phq9",
+      label: "抑郁相关困扰",
+      value: Math.max(0, Math.min(100, phq9?.normalizedScore ?? 0)),
+      color: "#f59e0b"
+    },
+    {
+      key: "gad7",
+      label: "焦虑相关困扰",
+      value: Math.max(0, Math.min(100, gad7?.normalizedScore ?? 0)),
+      color: "#2563eb"
+    }
+  ];
+});
 const displayScores = computed<AssessmentScaleScore[]>(() => {
   if (!report.value) {
     return [];
@@ -150,13 +198,99 @@ function go(url: string) {
 }
 
 function goToRequest() {
-  const query = report.value ? `?assessmentId=${encodeURIComponent(report.value.id)}&preferredName=${encodeURIComponent(report.value.preferredName || "")}` : "";
+  if (report.value) {
+    uni.setStorageSync(`assessment_summary:${report.value.id}`, {
+      riskLevel: report.value.riskLevel,
+      scoreSummary: report.value.scoreSummary,
+      scaleVersion: report.value.scaleVersion,
+      sourceProfile: report.value.sourceProfile
+    });
+  }
+  const query = report.value
+    ? `?assessmentId=${encodeURIComponent(report.value.id)}&preferredName=${encodeURIComponent(report.value.preferredName || "")}`
+    : "";
   openPage(`/pages/counselors/index${query}`);
+}
+
+function drawRadar() {
+  if (!report.value) return;
+  const items = radarItems.value;
+  const centerX = 160;
+  const centerY = 130;
+  const radius = 88;
+  const context = uni.createCanvasContext("assessmentRadar");
+
+  context.clearRect(0, 0, 320, 260);
+  context.setLineWidth(1);
+  context.setStrokeStyle("#e5e7eb");
+  context.setFillStyle("#6b7280");
+  context.setFontSize(11);
+
+  [0.33, 0.66, 1].forEach((level) => {
+    context.beginPath();
+    items.forEach((_, index) => {
+      const point = radarPoint(index, radius * level, centerX, centerY);
+      if (index === 0) context.moveTo(point.x, point.y);
+      else context.lineTo(point.x, point.y);
+    });
+    context.closePath();
+    context.stroke();
+  });
+
+  items.forEach((item, index) => {
+    const outer = radarPoint(index, radius, centerX, centerY);
+    const label = radarPoint(index, radius + 28, centerX, centerY);
+    context.beginPath();
+    context.moveTo(centerX, centerY);
+    context.lineTo(outer.x, outer.y);
+    context.stroke();
+    context.setFillStyle("#374151");
+    context.fillText(item.label, label.x - 34, label.y + 4);
+  });
+
+  context.beginPath();
+  items.forEach((item, index) => {
+    const point = radarPoint(index, radius * (item.value / 100), centerX, centerY);
+    if (index === 0) context.moveTo(point.x, point.y);
+    else context.lineTo(point.x, point.y);
+  });
+  context.closePath();
+  context.setFillStyle("rgba(37, 99, 235, 0.18)");
+  context.fill();
+  context.setStrokeStyle("#2563eb");
+  context.setLineWidth(2);
+  context.stroke();
+
+  items.forEach((item, index) => {
+    const point = radarPoint(index, radius * (item.value / 100), centerX, centerY);
+    context.beginPath();
+    context.setFillStyle(item.color);
+    context.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    context.fill();
+  });
+
+  context.draw();
+}
+
+function radarPoint(index: number, targetRadius: number, centerX: number, centerY: number) {
+  const angle = -Math.PI / 2 + index * ((Math.PI * 2) / 3);
+  return {
+    x: centerX + Math.cos(angle) * targetRadius,
+    y: centerY + Math.sin(angle) * targetRadius
+  };
 }
 
 onLoad((options = {}) => {
   code.value = typeof options.code === "string" ? decodeURIComponent(options.code) : "";
   void load();
+});
+
+onReady(() => {
+  void nextTick(drawRadar);
+});
+
+watch(report, () => {
+  void nextTick(drawRadar);
 });
 </script>
 
@@ -165,6 +299,44 @@ onLoad((options = {}) => {
   color: #8a93a5;
   font-size: 28rpx;
   font-weight: 700;
+}
+
+.radar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.radar-canvas {
+  width: 100%;
+  height: 520rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(180deg, #f8fbff, #ffffff);
+}
+
+.radar-legend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.radar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  color: #475569;
+  padding: 14rpx;
+  font-size: 22rpx;
+  font-weight: 760;
+}
+
+.radar-dot {
+  width: 16rpx;
+  height: 16rpx;
+  flex: 0 0 16rpx;
+  border-radius: 999rpx;
 }
 
 .score-bar {

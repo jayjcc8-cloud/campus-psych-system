@@ -1,25 +1,32 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import type { SupportSlot } from "@teacher-support/shared";
-import { createSlot, listSlots, updateSlot } from "../api/client";
+import { supportSlotModeLabels, type SupportSlot } from "@teacher-support/shared";
+import { listSlots, updateSlot } from "../api/client";
 import AdminShell from "../components/AdminShell.vue";
 
 const slots = ref<SupportSlot[]>([]);
 const loading = ref(false);
-const saving = ref(false);
 const error = ref("");
-const form = ref({
-  startTime: "",
-  endTime: "",
-  capacity: 4
-});
+const filter = ref<"upcoming" | "active" | "paused" | "history" | "all">("upcoming");
 
 const upcomingSlots = computed(() => slots.value.filter((slot) => new Date(slot.endTime).getTime() >= Date.now()));
 const historySlots = computed(() => slots.value.filter((slot) => new Date(slot.endTime).getTime() < Date.now()));
-
-function toIso(value: string) {
-  return new Date(value).toISOString();
-}
+const activeSlots = computed(() => upcomingSlots.value.filter((slot) => slot.available && !slot.deletedAt));
+const pausedSlots = computed(() => upcomingSlots.value.filter((slot) => !slot.available || slot.deletedAt));
+const visibleSlots = computed(() => {
+  if (filter.value === "active") return activeSlots.value;
+  if (filter.value === "paused") return pausedSlots.value;
+  if (filter.value === "history") return historySlots.value;
+  if (filter.value === "all") return slots.value;
+  return upcomingSlots.value;
+});
+const filterTabs = [
+  { key: "upcoming", label: "近期时段" },
+  { key: "active", label: "开放中" },
+  { key: "paused", label: "已停用" },
+  { key: "history", label: "历史" },
+  { key: "all", label: "全部" }
+] as const;
 
 async function load() {
   loading.value = true;
@@ -33,39 +40,21 @@ async function load() {
   }
 }
 
-async function submit() {
-  if (!form.value.startTime || !form.value.endTime) {
-    error.value = "请选择开始和结束时间。";
-    return;
-  }
-
-  saving.value = true;
-  error.value = "";
-  try {
-    await createSlot({
-      startTime: toIso(form.value.startTime),
-      endTime: toIso(form.value.endTime),
-      capacity: Number(form.value.capacity),
-      available: true
-    });
-    form.value = { startTime: "", endTime: "", capacity: 4 };
-    await load();
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : "保存失败";
-  } finally {
-    saving.value = false;
-  }
-}
-
 async function toggleSlot(slot: SupportSlot) {
   await updateSlot(slot.id, { available: !slot.available });
   await load();
 }
 
-async function changeCapacity(slot: SupportSlot, event: Event) {
-  const target = event.target as HTMLInputElement;
-  await updateSlot(slot.id, { capacity: Number(target.value) });
-  await load();
+function formatRange(slot: SupportSlot) {
+  return `${new Date(slot.startTime).toLocaleString()} - ${new Date(slot.endTime).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  })}`;
+}
+
+function occupancyPercent(slot: SupportSlot) {
+  if (!slot.capacity) return 0;
+  return Math.min(100, Math.round(((slot.activeCount ?? 0) / slot.capacity) * 100));
 }
 
 onMounted(load);
@@ -77,72 +66,60 @@ onMounted(load);
       <div>
         <p class="eyebrow">时段配置</p>
         <h2>中心开放时段</h2>
+        <p class="muted">后台仅用于查看、筛选、停用/恢复和审计追踪；日常排期由咨询师端维护。</p>
       </div>
-      <button @click="load">刷新</button>
+      <div class="heading-actions">
+        <RouterLink class="button-link" to="/audit-logs">查看审计记录</RouterLink>
+        <button @click="load">刷新</button>
+      </div>
     </div>
 
-    <section class="form-card">
-      <h3>新增时段</h3>
-      <div class="form-grid">
-        <label>
-          开始时间
-          <input v-model="form.startTime" type="datetime-local" />
-        </label>
-        <label>
-          结束时间
-          <input v-model="form.endTime" type="datetime-local" />
-        </label>
-        <label>
-          容量
-          <input v-model.number="form.capacity" min="1" max="20" type="number" />
-        </label>
-      </div>
-      <p v-if="error" class="error">{{ error }}</p>
-      <button :disabled="saving" @click="submit">{{ saving ? "保存中..." : "保存时段" }}</button>
-    </section>
+    <p v-if="error" class="error">{{ error }}</p>
 
     <p v-if="loading" class="muted">正在同步时段...</p>
 
     <section class="section-block">
-      <h3>近期时段</h3>
+      <div class="section-title-row">
+        <h3>时段列表</h3>
+        <div class="filter-tabs">
+          <button
+            v-for="item in filterTabs"
+            :key="item.key"
+            :class="{ active: filter === item.key }"
+            @click="filter = item.key"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
       <div class="slot-list">
-        <article v-for="slot in upcomingSlots" :key="slot.id" class="slot-card">
+        <article v-for="slot in visibleSlots" :key="slot.id" class="slot-card">
           <div>
-            <strong>{{ new Date(slot.startTime).toLocaleString() }}</strong>
+            <strong>{{ formatRange(slot) }}</strong>
             <p class="muted">{{ slot.counselorName || "未关联咨询师" }}</p>
-            <p class="muted">至 {{ new Date(slot.endTime).toLocaleString() }}</p>
-            <p class="muted">已占用 {{ slot.activeCount ?? 0 }} / {{ slot.capacity }}</p>
+            <p class="muted">
+              {{ supportSlotModeLabels[slot.mode] }} · {{ slot.location || slot.note || "地点待补充" }}
+            </p>
+            <div class="occupancy-block">
+              <div class="occupancy-meta">
+                <span>占用 {{ slot.activeCount ?? 0 }} / {{ slot.capacity }}</span>
+                <span>{{ occupancyPercent(slot) }}%</span>
+              </div>
+              <div class="bar-track wide-track">
+                <div class="bar-fill" :style="{ width: `${occupancyPercent(slot)}%` }" />
+              </div>
+            </div>
           </div>
           <div class="slot-actions">
-            <input
-              class="capacity-input"
-              type="number"
-              min="1"
-              max="20"
-              :value="slot.capacity"
-              @change="changeCapacity(slot, $event)"
-            />
-            <button :class="{ danger: slot.available }" @click="toggleSlot(slot)">
-              {{ slot.available ? "停用" : "启用" }}
+            <span class="pill" :class="{ danger: !slot.available || slot.deletedAt }">
+              {{ slot.deletedAt ? "已删除" : slot.available ? "开放中" : "已停用" }}
+            </span>
+            <button v-if="!slot.deletedAt" :class="{ danger: slot.available }" @click="toggleSlot(slot)">
+              {{ slot.available ? "停用" : "恢复" }}
             </button>
           </div>
         </article>
-        <p v-if="!loading && upcomingSlots.length === 0" class="empty-card">暂无近期时段。</p>
-      </div>
-    </section>
-
-    <section class="section-block">
-      <h3>历史时段</h3>
-      <div class="slot-list compact">
-        <article v-for="slot in historySlots" :key="slot.id" class="slot-card muted-card">
-          <div>
-            <strong>{{ new Date(slot.startTime).toLocaleString() }}</strong>
-            <p class="muted">{{ slot.counselorName || "未关联咨询师" }}</p>
-            <p class="muted">容量 {{ slot.capacity }}，已占用 {{ slot.activeCount ?? 0 }}</p>
-          </div>
-          <span class="pill">历史</span>
-        </article>
-        <p v-if="!loading && historySlots.length === 0" class="empty-card">暂无历史时段。</p>
+        <p v-if="!loading && visibleSlots.length === 0" class="empty-card">暂无符合筛选条件的时段。</p>
       </div>
     </section>
   </AdminShell>

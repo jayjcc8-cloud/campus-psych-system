@@ -1,15 +1,5 @@
 <template>
   <view class="page page-with-footer">
-    <!-- #ifdef H5 -->
-    <view class="h5-flow-header">
-      <view>
-        <text class="h5-flow-title">选择时间</text>
-        <text class="h5-flow-subtitle">预约流程 2 / 3 · 找一个适合说话的时间</text>
-      </view>
-      <button class="button-light" @click="goBack">返回上一步</button>
-    </view>
-    <!-- #endif -->
-
     <!-- #ifdef MP-WEIXIN -->
     <view class="top-nav">
       <text class="back-link" @click="goBack">‹</text>
@@ -39,6 +29,11 @@
       <text class="step-item">确认预约</text>
     </view>
 
+    <view v-if="assessmentId" class="linked-assessment-card">
+      <text class="mini-tag">已关联测评结果</text>
+      <text class="muted">下一步确认预约时会继续保留这份结果摘要。</text>
+    </view>
+
     <view class="stack">
       <text v-if="loading" class="muted">正在同步可选时间...</text>
       <text v-if="error" class="error">{{ error }}</text>
@@ -56,7 +51,7 @@
             :class="{ 'time-chip-active': slotId === slot.id }"
             @click="slotId = slot.id"
           >
-            {{ formatClock(slot.startTime) }}
+            {{ formatTimeRange(slot.startTime, slot.endTime) }}
           </button>
         </view>
       </view>
@@ -72,7 +67,9 @@
       <view class="row-between">
         <view>
           <text class="label">本次预约</text>
-          <text class="muted">时间：{{ selectedSlot ? formatShortTime(selectedSlot.startTime) : "请选择" }}</text>
+          <text class="muted">
+            时间：{{ selectedSlot ? formatShortRange(selectedSlot.startTime, selectedSlot.endTime) : "请选择" }}
+          </text>
           <text class="muted">咨询师：{{ counselor?.displayName || "未选择" }}</text>
         </view>
         <button class="compact-button" :disabled="!counselor || !slotId || submitting" @click="startRequest">下一步</button>
@@ -124,9 +121,19 @@ function formatClock(value: string) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatTimeRange(start: string, end?: string) {
+  const endText = end ? formatClock(end) : "";
+  return endText ? `${formatClock(start)}-${endText}` : formatClock(start);
+}
+
 function formatShortTime(value: string) {
   const date = new Date(value);
   return `${date.getMonth() + 1}/${date.getDate()} ${formatClock(value)}`;
+}
+
+function formatShortRange(start: string, end?: string) {
+  const endText = end ? formatClock(end) : "";
+  return `${formatShortTime(start)}${endText ? `-${endText}` : ""}`;
 }
 
 function formatDateLabel(value: string) {
@@ -255,5 +262,15 @@ onLoad((options) => {
 
 .empty-action {
   margin-top: 22rpx;
+}
+
+.linked-assessment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-top: 20rpx;
+  border-radius: 28rpx;
+  background: #eef6ff;
+  padding: 24rpx;
 }
 </style>

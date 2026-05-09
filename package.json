@@ -6,8 +6,9 @@
   "scripts": {
     "dev:api": "pnpm --filter @teacher-support/api dev",
     "dev:admin": "pnpm --filter @teacher-support/admin-web dev",
+    "dev:official": "pnpm --filter @teacher-support/official-web dev",
     "dev:user": "pnpm --filter @teacher-support/user-client dev:mp-weixin",
-    "dev:user:h5": "pnpm --filter @teacher-support/user-client dev:h5",
+    "build:official": "pnpm --filter @teacher-support/official-web build",
     "build": "pnpm -r --filter './apps/**' build",
     "check": "pnpm -r check",
     "lint": "eslint .",

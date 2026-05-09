@@ -576,6 +576,50 @@ p {
   margin-top: 28px;
 }
 
+.heading-actions,
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.button-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eef4ff;
+  color: var(--primary);
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-tabs button {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--muted);
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.filter-tabs button.active {
+  border-color: rgba(0, 82, 217, 0.3);
+  background: #eef4ff;
+  color: var(--primary);
+}
+
 .section-block h3 {
   color: var(--text);
   font-size: 20px;
@@ -596,9 +640,16 @@ p {
   gap: 10px;
 }
 
-.capacity-input {
-  width: 92px;
-  margin-top: 0;
+.occupancy-block {
+  max-width: 420px;
+  margin-top: 12px;
+}
+
+.occupancy-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .muted-card {
