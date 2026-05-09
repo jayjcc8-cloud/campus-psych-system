@@ -18,7 +18,7 @@ export function listLocalReceipts(): LocalReceipt[] {
     kind: item.kind === "assessment" ? "assessment" : "support_request",
     receiptCode: item.receiptCode,
     itemId: item.itemId ?? item.requestId ?? item.receiptCode,
-    title: item.title ?? (item.kind === "assessment" ? "匿名心理测评" : "匿名支持请求"),
+    title: item.title ?? (item.kind === "assessment" ? "心理测评" : "预约记录"),
     createdAt: item.createdAt
   }));
 }

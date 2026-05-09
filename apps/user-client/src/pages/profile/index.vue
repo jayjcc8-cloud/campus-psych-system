@@ -1,5 +1,15 @@
 <template>
   <view class="page">
+    <!-- #ifdef H5 -->
+    <view class="h5-flow-header">
+      <view>
+        <text class="h5-flow-title">账号与设置</text>
+        <text class="h5-flow-subtitle">统一管理登录状态、隐私说明和安全入口</text>
+      </view>
+      <button class="h5-link-button" @click="go('/pages/index/index')">返回首页</button>
+    </view>
+    <!-- #endif -->
+
     <view class="hero hero-compact">
       <text class="eyebrow">我的</text>
       <text class="title">{{ userProfile ? `${userProfile.preferredName}，欢迎回来` : "未登录" }}</text>
@@ -10,7 +20,7 @@
       <view class="profile-panel">
         <view class="avatar">{{ userProfile?.preferredName?.slice(0, 1) || "你" }}</view>
         <text class="profile-name">{{ userProfile?.preferredName || "匿名浏览" }}</text>
-        <text class="muted">{{ userProfile ? userProfile.privacyId : "可以先浏览，需要提交预约时再登录" }}</text>
+        <text class="muted">{{ userProfile ? userProfile.emailMasked : "可以先浏览，需要提交预约时再登录" }}</text>
       </view>
 
       <view class="settings-list">
@@ -30,10 +40,25 @@
         </view>
         <view class="settings-cell interactive" @click="go('/pages/account-recovery/index')">
           <view>
-            <text class="label-text">账号恢复</text>
-            <text class="muted">{{ userProfile ? "使用恢复短语重设密码" : "忘记密码时找回隐私账号" }}</text>
+            <text class="label-text">账号安全</text>
+            <text class="muted">{{ userProfile ? "邮箱账号与密码重置说明" : "忘记密码时联系支持中心" }}</text>
           </view>
           <text class="chevron">›</text>
+        </view>
+        <view v-if="userProfile && !userProfile.emailVerified" class="settings-cell verify-cell">
+          <view>
+            <text class="label-text">邮箱验证</text>
+            <text class="muted">完成验证后可提交预约和测评</text>
+            <view v-if="verificationToken" class="field inline-field">
+              <input v-model="verificationToken" placeholder="输入验证 token" />
+            </view>
+            <text v-if="verifyMessage" class="muted">{{ verifyMessage }}</text>
+            <text v-if="verifyError" class="error">{{ verifyError }}</text>
+          </view>
+          <view class="verify-actions">
+            <button class="button-light compact-button" @click="sendVerification">获取</button>
+            <button class="button-soft compact-button" :disabled="!verificationToken" @click="confirmVerification">验证</button>
+          </view>
         </view>
         <view class="settings-cell interactive" @click="go('/pages/privacy/index')">
           <view>
@@ -49,6 +74,15 @@
           </view>
           <text class="chevron">›</text>
         </view>
+        <!-- #ifdef MP-WEIXIN -->
+        <view class="settings-cell interactive" @click="previewSplash">
+          <view>
+            <text class="label-text">预览启动页</text>
+            <text class="muted">清除今日展示记录后重新打开启动宣传页</text>
+          </view>
+          <text class="chevron">›</text>
+        </view>
+        <!-- #endif -->
         <view v-if="userProfile" class="settings-cell interactive danger-cell" @click="confirmLogout">
           <view>
             <text class="label-text">退出登录</text>
@@ -72,10 +106,22 @@
 import { onShow } from "@dcloudio/uni-app";
 import { ref } from "vue";
 import type { PrivacyUserProfile } from "@teacher-support/shared";
-import { ApiError, clearCounselorToken, clearUserToken, getPrivacyUserMe, getUserToken } from "../../api/client";
+import {
+  ApiError,
+  clearCounselorToken,
+  clearUserToken,
+  confirmEmailVerification,
+  getPrivacyUserMe,
+  getUserToken,
+  logoutCurrentToken,
+  requestEmailVerification
+} from "../../api/client";
 import { openPage } from "../../utils/navigation";
 
 const userProfile = ref<PrivacyUserProfile | null>(null);
+const verificationToken = ref("");
+const verifyMessage = ref("");
+const verifyError = ref("");
 
 function go(url: string) {
   openPage(url);
@@ -105,14 +151,79 @@ function confirmLogout() {
     cancelText: "取消",
     success(result) {
       if (result.confirm) {
-        clearUserToken();
-        clearCounselorToken();
-        userProfile.value = null;
-        uni.reLaunch({ url: "/pages/login/index" });
+        void logoutCurrentToken().finally(() => {
+          clearUserToken();
+          clearCounselorToken();
+          userProfile.value = null;
+          uni.reLaunch({ url: "/pages/login/index" });
+        });
       }
     }
   });
 }
 
-onShow(refreshUser);
+async function sendVerification() {
+  verifyError.value = "";
+  verifyMessage.value = "";
+  try {
+    const result = await requestEmailVerification(userProfile.value?.email ?? "");
+    verifyMessage.value = result.message;
+    verificationToken.value = result.devToken ?? verificationToken.value;
+  } catch (err) {
+    verifyError.value = err instanceof Error ? err.message : "发送失败";
+  }
+}
+
+async function confirmVerification() {
+  verifyError.value = "";
+  verifyMessage.value = "";
+  try {
+    const result = await confirmEmailVerification(verificationToken.value);
+    verifyMessage.value = result.message;
+    clearUserToken();
+    uni.reLaunch({ url: "/pages/login/index" });
+  } catch (err) {
+    verifyError.value = err instanceof Error ? err.message : "验证失败";
+  }
+}
+
+function previewSplash() {
+  uni.removeStorageSync("psych_center_splash_seen_date");
+  uni.showToast({ title: "已重置启动页", icon: "success" });
+  setTimeout(() => {
+    uni.reLaunch({ url: "/pages/index/index" });
+  }, 500);
+}
+
+function syncProfileChrome() {
+  // #ifdef H5
+  uni.hideTabBar();
+  // #endif
+
+  // #ifdef MP-WEIXIN
+  uni.showTabBar();
+  // #endif
+}
+
+function handleShow() {
+  syncProfileChrome();
+  void refreshUser();
+}
+
+onShow(handleShow);
 </script>
+
+<style scoped>
+.verify-cell {
+  align-items: flex-start;
+}
+
+.verify-actions {
+  display: flex;
+  gap: 12rpx;
+}
+
+.inline-field {
+  margin-top: 12rpx;
+}
+</style>

@@ -2,12 +2,16 @@ import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nest
 import { createSupportRequestSchema } from "@teacher-support/shared";
 import type { Request } from "express";
 import { getAnonymousSessionId, getIpAddress } from "../common/request-context.js";
-import { UserAuthGuard } from "../user/user-auth.guard.js";
+import { UserAuthGuard, type UserRequest } from "../user/user-auth.guard.js";
+import { UserService } from "../user/user.service.js";
 import { SupportService } from "./support.service.js";
 
 @Controller("support")
 export class SupportController {
-  constructor(private readonly support: SupportService) {}
+  constructor(
+    private readonly support: SupportService,
+    private readonly users: UserService
+  ) {}
 
   @Get("slots")
   listSlots() {
@@ -31,8 +35,9 @@ export class SupportController {
 
   @Post("requests")
   @UseGuards(UserAuthGuard)
-  createRequest(@Body() body: unknown, @Req() request: Request) {
+  async createRequest(@Body() body: unknown, @Req() request: UserRequest & Request) {
     const payload = createSupportRequestSchema.parse(body);
+    await this.users.assertEmailVerified(request.user!.userId!);
     return this.support.createRequest({
       ...payload,
       contactEmail: payload.contactEmail || undefined,

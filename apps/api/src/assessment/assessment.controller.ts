@@ -2,17 +2,22 @@ import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/comm
 import { createAssessmentSchema } from "@teacher-support/shared";
 import type { Request } from "express";
 import { getAnonymousSessionId } from "../common/request-context.js";
-import { UserAuthGuard } from "../user/user-auth.guard.js";
+import { UserAuthGuard, type UserRequest } from "../user/user-auth.guard.js";
+import { UserService } from "../user/user.service.js";
 import { AssessmentService } from "./assessment.service.js";
 
 @Controller("assessments")
 export class AssessmentController {
-  constructor(private readonly assessments: AssessmentService) {}
+  constructor(
+    private readonly assessments: AssessmentService,
+    private readonly users: UserService
+  ) {}
 
   @Post()
   @UseGuards(UserAuthGuard)
-  createAssessment(@Body() body: unknown, @Req() request: Request) {
+  async createAssessment(@Body() body: unknown, @Req() request: UserRequest & Request) {
     const payload = createAssessmentSchema.parse(body);
+    await this.users.assertEmailVerified(request.user!.userId!);
     return this.assessments.createAssessment({
       ...payload,
       preferredName: payload.preferredName || undefined,

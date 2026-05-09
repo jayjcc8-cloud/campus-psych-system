@@ -1,56 +1,71 @@
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
-import { randomBytes } from "node:crypto";
-import { hashPassword, signAdminToken, stableHash, verifyPassword } from "../common/security.js";
+import { createId, createOpaqueToken, hashPassword, hashToken, signAdminToken, verifyPassword } from "../common/security.js";
 import { DatabaseService } from "../database/database.service.js";
 
 @Injectable()
 export class UserService {
   constructor(private readonly database: DatabaseService) {}
 
-  async register(input: { password: string; preferredName: string; recoveryEmail?: string }) {
-    const privacyId = await this.createUniquePrivacyId();
-    const recoveryPhrase = createRecoveryPhrase();
+  async register(input: { email: string; password: string; preferredName?: string }) {
+    const email = normalizeEmail(input.email);
+    if (!isEmail(email)) {
+      throw new BadRequestException("请输入有效邮箱。");
+    }
+
+    const existing = await this.database.query<{ id: string }>("SELECT id FROM privacy_user_accounts WHERE email = $1", [email]);
+    if (existing.rows[0]) {
+      throw new BadRequestException("该邮箱已注册，请直接登录。");
+    }
 
     const result = await this.database.query(
       `INSERT INTO privacy_user_accounts (
-         id, privacy_id, username, preferred_name, recovery_email, password_hash, recovery_phrase_hash, status, created_at, updated_at
+         id, email, email_verified, username, preferred_name, password_hash, status, created_at, updated_at, last_login_at
        )
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'active', now(), now())
-       RETURNING id, privacy_id, username, preferred_name, recovery_email, created_at`,
+       VALUES (gen_random_uuid(), $1, false, $2, $3, $4, 'active', now(), now(), now())
+       RETURNING id, email, email_verified, username, preferred_name, token_version, created_at`,
       [
-        privacyId,
-        privacyId.toLowerCase(),
-        input.preferredName.trim(),
-        normalizeEmail(input.recoveryEmail),
-        hashPassword(input.password),
-        hashRecoveryPhrase(recoveryPhrase)
+        email,
+        email,
+        normalizePreferredName(input.preferredName),
+        hashPassword(input.password)
       ]
     );
 
     const user = mapUser(result.rows[0]);
+    const verificationToken = createOpaqueToken("verify");
+    await this.database.query(
+      `INSERT INTO account_tokens (id, account_type, account_id, purpose, token_hash, expires_at, created_at)
+       VALUES ($1, 'user', $2, 'email_verification', $3, now() + interval '24 hours', now())`,
+      [createId(), user.id, hashToken(verificationToken)]
+    );
+
     return {
-      token: signAdminToken({ sub: user.id, username: user.username, role: "user", userId: user.id }),
+      token: signAdminToken({ sub: user.id, username: user.username, role: "user", userId: user.id, tokenVersion: user.tokenVersion }),
       user,
-      recoveryPhrase
+      devVerificationToken: process.env.NODE_ENV === "production" ? undefined : verificationToken
     };
   }
 
-  async login(identifier: string, password: string) {
-    const normalized = identifier.trim();
+  async login(emailInput: string, password: string) {
+    const email = normalizeEmail(emailInput);
+    if (!isEmail(email)) {
+      throw new UnauthorizedException("账号或密码不正确。");
+    }
     const result = await this.database.query<{
       id: string;
-      privacy_id: string;
+      email: string | null;
+      email_verified: boolean;
       username: string;
       preferred_name: string;
-      recovery_email: string | null;
       password_hash: string;
       status: string;
+      token_version: number;
       created_at: string;
     }>(
-      `SELECT id, privacy_id, username, preferred_name, recovery_email, password_hash, status, created_at
+      `SELECT id, email, email_verified, username, preferred_name, password_hash, status, token_version, created_at
        FROM privacy_user_accounts
-       WHERE privacy_id = $1 OR username = $2`,
-      [normalized.toUpperCase(), normalized.toLowerCase()]
+       WHERE email = $1`,
+      [email]
     );
 
     const account = result.rows[0];
@@ -58,72 +73,46 @@ export class UserService {
       throw new UnauthorizedException("账号或密码不正确。");
     }
 
+    await this.database.query("UPDATE privacy_user_accounts SET last_login_at = now() WHERE id = $1", [account.id]);
+
     const user = mapUser(account);
     return {
-      token: signAdminToken({ sub: user.id, username: user.username, role: "user", userId: user.id }),
+      token: signAdminToken({ sub: user.id, username: user.username, role: "user", userId: user.id, tokenVersion: user.tokenVersion }),
       user
     };
   }
 
   async recover(input: { privacyId: string; recoveryPhrase: string; password: string }) {
-    const result = await this.database.query<{
-      id: string;
-      privacy_id: string;
-      username: string;
-      preferred_name: string;
-      recovery_email: string | null;
-      recovery_phrase_hash: string | null;
-      status: string;
-      created_at: string;
-    }>(
-      `SELECT id, privacy_id, username, preferred_name, recovery_email, recovery_phrase_hash, status, created_at
-       FROM privacy_user_accounts
-       WHERE privacy_id = $1`,
-      [input.privacyId.trim().toUpperCase()]
-    );
-
-    const account = result.rows[0];
-    if (!account || account.status !== "active" || account.recovery_phrase_hash !== hashRecoveryPhrase(input.recoveryPhrase)) {
-      throw new UnauthorizedException("隐私 ID 或恢复短语不正确。");
-    }
-
-    const updated = await this.database.query(
-      `UPDATE privacy_user_accounts
-       SET password_hash = $2, updated_at = now()
-       WHERE id = $1
-       RETURNING id, privacy_id, username, preferred_name, recovery_email, created_at`,
-      [account.id, hashPassword(input.password)]
-    );
-    const user = mapUser(updated.rows[0]);
-    return {
-      token: signAdminToken({ sub: user.id, username: user.username, role: "user", userId: user.id }),
-      user
-    };
+    void input;
+    throw new BadRequestException("账号恢复已切换为邮箱方式，请联系支持中心重设密码。");
   }
 
   async getMe(userId: string) {
     const result = await this.database.query(
-      "SELECT id, privacy_id, username, preferred_name, recovery_email, created_at FROM privacy_user_accounts WHERE id = $1 AND status = 'active'",
+      "SELECT id, email, email_verified, username, preferred_name, token_version, created_at FROM privacy_user_accounts WHERE id = $1 AND status = 'active'",
       [userId]
     );
     return result.rows[0] ? mapUser(result.rows[0]) : null;
   }
 
-  private async createUniquePrivacyId() {
-    for (let index = 0; index < 8; index += 1) {
-      const candidate = `U-${randomBytes(2).toString("hex").toUpperCase()}-${randomBytes(2).toString("hex").toUpperCase()}`;
-      const existing = await this.database.query<{ id: string }>("SELECT id FROM privacy_user_accounts WHERE privacy_id = $1", [candidate]);
-      if (!existing.rows[0]) {
-        return candidate;
-      }
+  async assertEmailVerified(userId: string) {
+    const result = await this.database.query<{ email_verified: boolean }>(
+      "SELECT email_verified FROM privacy_user_accounts WHERE id = $1 AND status = 'active'",
+      [userId]
+    );
+    if (!result.rows[0]?.email_verified) {
+      throw new UnauthorizedException("请先完成邮箱验证，再继续提交。");
     }
-    throw new BadRequestException("暂时无法创建隐私 ID，请稍后再试。");
   }
 }
 
 function normalizeEmail(value?: string) {
   const trimmed = value?.trim() ?? "";
   return trimmed ? trimmed.toLowerCase() : null;
+}
+
+function isEmail(value: string | null) {
+  return Boolean(value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
 }
 
 function maskEmail(value?: string | null) {
@@ -136,20 +125,17 @@ function maskEmail(value?: string | null) {
 function mapUser(row: any) {
   return {
     id: row.id,
-    privacyId: row.privacy_id,
     username: row.username,
+    tokenVersion: Number(row.token_version ?? 0),
+    email: row.email ?? undefined,
+    emailMasked: maskEmail(row.email) ?? "未绑定邮箱",
+    emailVerified: Boolean(row.email_verified),
     preferredName: row.preferred_name,
-    recoveryEmailMasked: maskEmail(row.recovery_email),
     createdAt: row.created_at
   };
 }
 
-const recoveryWords = ["松林", "星河", "微风", "灯塔", "山谷", "清晨", "纸船", "蓝鲸", "月光", "溪流", "云朵", "远山", "竹影", "晴空", "海盐", "橙花"];
-
-function createRecoveryPhrase() {
-  return Array.from({ length: 6 }, () => recoveryWords[randomBytes(1)[0] % recoveryWords.length]).join("-");
-}
-
-function hashRecoveryPhrase(value: string) {
-  return stableHash(value.replace(/\s+/g, "").replace(/－/g, "-").toLowerCase());
+function normalizePreferredName(value?: string) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || "用户";
 }

@@ -1,101 +1,82 @@
 <template>
   <view class="page page-with-footer">
+    <!-- #ifdef H5 -->
+    <view class="h5-flow-header">
+      <view>
+        <text class="h5-flow-title">确认预约</text>
+        <text class="h5-flow-subtitle">预约流程 3 / 3 · 只填写你愿意留下的内容</text>
+      </view>
+      <button class="button-light" @click="goBack">返回上一步</button>
+    </view>
+    <!-- #endif -->
+
+    <!-- #ifdef MP-WEIXIN -->
     <view class="top-nav">
       <text class="back-link" @click="goBack">‹</text>
       <view class="top-title">
-        <text class="page-title compact-title">填写预约信息</text>
-        <text class="muted">只填写你愿意留下的内容</text>
+        <text class="page-title compact-title">确认预约</text>
+        <text class="muted">请确认以下信息</text>
+      </view>
+    </view>
+    <!-- #endif -->
+
+    <view class="confirm-card">
+      <view class="detail-row">
+        <text class="detail-label">咨询师</text>
+        <text class="detail-value">{{ counselorName || "已选咨询师" }}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">时间</text>
+        <text class="detail-value">{{ selectedSlot ? formatFullTime(selectedSlot.startTime) : "未选择" }}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">形式</text>
+        <text class="detail-value">线下 / 线上支持</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">时长</text>
+        <text class="detail-value">约 50 分钟</text>
       </view>
     </view>
 
-    <view class="step-strip">
-      <text class="step-item">选咨询师</text>
-      <text class="step-item">选时间</text>
-      <text class="step-item step-active">确认预约</text>
-    </view>
-
-    <view class="card stack-small">
-      <view class="row-start">
-        <view class="avatar avatar-small">{{ counselorName.slice(0, 1) || "咨" }}</view>
-        <view>
-          <text class="label-text">{{ counselorName || "已选咨询师" }}</text>
-          <text class="muted">{{ selectedSlot ? formatFullTime(selectedSlot.startTime) : "请选择一个开放时段" }}</text>
-        </view>
+    <view class="card stack">
+      <view class="field">
+        <text class="label">希望被如何称呼（可选）</text>
+        <input v-model="preferredName" placeholder="昵称、代称或留空" />
+      </view>
+      <view class="field">
+        <text class="label">邮箱（可选）</text>
+        <input v-model="contactEmail" placeholder="仅在你希望被联系时填写" />
+      </view>
+      <view class="field">
+        <text class="label">补充说明（可选）</text>
+        <textarea v-model="remark" maxlength="600" placeholder="只写你愿意表达的部分" />
+        <text class="muted">{{ remark.length }}/600</text>
       </view>
     </view>
 
-    <view class="stack">
-      <view class="card detail-list">
-        <view class="detail-row">
-          <text class="detail-label">咨询师</text>
-          <text class="detail-value">{{ counselorName || "已选咨询师" }}</text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">时间</text>
-          <text class="detail-value">{{ selectedSlot ? formatFullTime(selectedSlot.startTime) : "未选择" }}</text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">形式</text>
-          <text class="detail-value">匿名支持请求</text>
-        </view>
-        <button class="button-light" @click="goBack">修改时间或咨询师</button>
-      </view>
-
-      <view class="card stack">
-        <view class="hint-card">
-          <text class="label-text">匿名边界</text>
-          <view class="meta-line">
-            <text class="mini-tag">称呼可空</text>
-            <text class="mini-tag">邮箱可空</text>
-            <text class="mini-tag">可撤回</text>
-          </view>
-        </view>
-        <view class="field">
-          <text class="label">希望被如何称呼</text>
-          <input v-model="preferredName" placeholder="可留空，也可填写昵称或代称" />
-        </view>
-        <view class="field">
-          <text class="label">邮箱</text>
-          <input v-model="contactEmail" placeholder="可选，仅在你希望被联系时填写" />
-        </view>
-        <view class="field">
-          <text class="label">其他联系方式</text>
-          <input v-model="contactNote" placeholder="可选，例如办公邮箱、内线或其他方式" />
-        </view>
-        <view class="field">
-          <text class="label">补充说明</text>
-          <textarea v-model="remark" maxlength="600" placeholder="可选，只写你愿意表达的部分" />
-          <text class="text-count">{{ remark.length }}/600</text>
-        </view>
-      </view>
-
-      <view class="card soft-card">
-        <text class="label-text">提交后会发生什么</text>
-        <text class="copy">系统会生成匿名回执码，用于查看状态或撤回。联系方式不填写也可以提交。</text>
-      </view>
-
-      <text v-if="error" class="error">{{ error }}</text>
+    <view class="privacy-tip">
+      <text class="mini-tag">隐私提示</text>
+      <text class="muted">你的信息仅用于本次预约。确认后会生成回执码，可用于查看状态或撤回。</text>
     </view>
+
+    <text v-if="error" class="error">{{ error }}</text>
 
     <view class="summary-bar">
-      <view class="row-between">
-        <view>
-          <text class="label">本次预约</text>
-          <text class="muted">{{ selectedSlot ? `${counselorName} · ${formatShortTime(selectedSlot.startTime)}` : "请先选择时间" }}</text>
-        </view>
-        <button class="compact-button" :disabled="submitting || !slotId" @click="submit">
-          {{ submitting ? "提交中" : "确认预约" }}
-        </button>
-      </view>
+      <button class="full-confirm" :disabled="submitting || !slotId" @click="submit">
+        {{ submitting ? "确认中" : "确认预约" }}
+      </button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import { onLoad } from "@dcloudio/uni-app";
 import { computed, onMounted, ref } from "vue";
 import type { SupportSlot } from "@teacher-support/shared";
 import { createRequest, getCounselor, listCounselorSlots } from "../../api/client";
 import { requireUserLogin } from "../../utils/auth";
+import { replacePage } from "../../utils/navigation";
 import { saveLocalReceipt } from "../../utils/receipts";
 
 const slots = ref<SupportSlot[]>([]);
@@ -105,9 +86,7 @@ const slotId = ref("");
 const preferredName = ref("");
 const assessmentId = ref("");
 const contactEmail = ref("");
-const contactNote = ref("");
 const remark = ref("");
-const loading = ref(false);
 const submitting = ref(false);
 const error = ref("");
 const selectedSlot = computed(() => slots.value.find((slot) => slot.id === slotId.value));
@@ -127,32 +106,20 @@ async function loadSlots() {
     error.value = "请先选择一位咨询师。";
     return;
   }
-
-  loading.value = true;
   try {
     const [profile, availableSlots] = await Promise.all([getCounselor(counselorId.value), listCounselorSlots(counselorId.value)]);
     counselorName.value = profile.displayName;
     slots.value = availableSlots;
-    if (!slotId.value || !availableSlots.some((slot) => slot.id === slotId.value)) {
-      slotId.value = availableSlots[0]?.id ?? "";
-    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : "时段暂时不可用";
-  } finally {
-    loading.value = false;
   }
 }
 
 async function submit() {
   error.value = "";
-  if (!requireUserLogin("提交预约请求")) return;
-
-  if (!counselorId.value) {
-    error.value = "请先选择一位咨询师。";
-    return;
-  }
-  if (!slotId.value) {
-    error.value = "请选择一个开放时段。";
+  if (!requireUserLogin("确认预约")) return;
+  if (!counselorId.value || !slotId.value) {
+    error.value = "请先完成咨询师和时间选择。";
     return;
   }
   if (contactEmail.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.value)) {
@@ -160,8 +127,8 @@ async function submit() {
     return;
   }
 
-  const confirm = await showConfirm();
-  if (!confirm) return;
+  const confirmed = await showConfirm();
+  if (!confirmed) return;
 
   submitting.value = true;
   try {
@@ -171,19 +138,18 @@ async function submit() {
       preferredName: preferredName.value,
       assessmentId: assessmentId.value,
       contactEmail: contactEmail.value,
-      contactNote: contactNote.value,
       remark: remark.value
     });
     saveLocalReceipt({
       kind: "support_request",
       receiptCode: result.receiptCode,
       itemId: result.id,
-      title: preferredName.value || "匿名支持请求",
+      title: `${counselorName.value || "咨询师"} · 预约`,
       createdAt: new Date().toISOString()
     });
-    uni.redirectTo({ url: `/pages/receipt/index?code=${encodeURIComponent(result.receiptCode)}` });
+    replacePage(`/pages/receipt/index?code=${encodeURIComponent(result.receiptCode)}`);
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "提交暂时没有成功";
+    error.value = err instanceof Error ? err.message : "预约暂时没有成功";
   } finally {
     submitting.value = false;
   }
@@ -192,8 +158,8 @@ async function submit() {
 function showConfirm() {
   return new Promise<boolean>((resolve) => {
     uni.showModal({
-      title: "确认提交",
-      content: "提交后将生成匿名回执码。你可以之后查看状态或撤回预约。",
+      title: "确认预约",
+      content: `${counselorName.value || "已选咨询师"} · ${selectedSlot.value ? formatShortTime(selectedSlot.value.startTime) : ""}\n确认后会生成预约回执码。`,
       confirmText: "确认预约",
       cancelText: "再看看",
       success: (result) => resolve(Boolean(result.confirm)),
@@ -203,24 +169,34 @@ function showConfirm() {
 }
 
 function goBack() {
-  uni.navigateBack();
+  uni.navigateBack({
+    fail: () => {
+      replacePage(counselorId.value ? `/pages/counselor-detail/index?id=${encodeURIComponent(counselorId.value)}` : "/pages/counselors/index");
+    }
+  });
 }
 
-const pages = getCurrentPages();
-const current = pages[pages.length - 1] as any;
-counselorId.value = decodeURIComponent(current?.options?.counselorId ?? "");
-slotId.value = decodeURIComponent(current?.options?.slotId ?? "");
-preferredName.value = decodeURIComponent(current?.options?.preferredName ?? "");
-assessmentId.value = decodeURIComponent(current?.options?.assessmentId ?? "");
+onLoad((options = {}) => {
+  counselorId.value = typeof options.counselorId === "string" ? decodeURIComponent(options.counselorId) : "";
+  slotId.value = typeof options.slotId === "string" ? decodeURIComponent(options.slotId) : "";
+  preferredName.value = typeof options.preferredName === "string" ? decodeURIComponent(options.preferredName) : "";
+  assessmentId.value = typeof options.assessmentId === "string" ? decodeURIComponent(options.assessmentId) : "";
+  void loadSlots();
+});
 
-onMounted(loadSlots);
+onMounted(() => {
+  if (counselorId.value && slots.value.length === 0) {
+    void loadSlots();
+  }
+});
 </script>
 
 <style scoped>
-.detail-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.confirm-card {
+  overflow: hidden;
+  border-radius: 30rpx;
+  background: #ffffff;
+  box-shadow: 0 18rpx 52rpx rgba(31, 41, 55, 0.06);
 }
 
 .detail-row {
@@ -229,27 +205,37 @@ onMounted(loadSlots);
   justify-content: space-between;
   gap: 20rpx;
   border-bottom: 1rpx solid #edf0f6;
-  padding: 24rpx 0;
+  padding: 30rpx;
 }
 
-.detail-row:first-child {
-  padding-top: 0;
-}
-
-.detail-row:nth-child(3) {
+.detail-row:last-child {
   border-bottom: 0;
 }
 
 .detail-label {
-  color: #667085;
+  color: #64748b;
   font-size: 25rpx;
 }
 
 .detail-value {
   max-width: 430rpx;
-  color: #263a59;
+  color: #2563eb;
   font-size: 26rpx;
-  font-weight: 760;
+  font-weight: 800;
   text-align: right;
+}
+
+.privacy-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  border-radius: 28rpx;
+  background: #f7f9ff;
+  padding: 24rpx;
+}
+
+.full-confirm {
+  width: 100%;
 }
 </style>

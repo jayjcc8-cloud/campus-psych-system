@@ -10,28 +10,35 @@ export class CounselorService {
     private readonly support: SupportService
   ) {}
 
-  async login(identifier: string, password: string) {
-    const normalized = identifier.trim().toLowerCase();
+  async login(emailInput: string, password: string) {
+    const email = normalizeEmail(emailInput);
+    if (!isEmail(email)) {
+      throw new UnauthorizedException("账号或密码不正确。");
+    }
     const result = await this.database.query<{
       id: string;
       username: string;
+      work_email: string | null;
       password_hash: string;
       status: string;
+      token_version: number;
       counselor_id: string;
       display_name: string;
       counselor_status: string;
     }>(
       `SELECT accounts.id,
               accounts.username,
+              accounts.work_email,
               accounts.password_hash,
               accounts.status,
+              accounts.token_version,
               accounts.counselor_id,
               counselors.display_name,
               counselors.status AS counselor_status
        FROM counselor_accounts accounts
        INNER JOIN counselors ON counselors.id = accounts.counselor_id
-       WHERE accounts.username = $1 OR accounts.work_email = $1`,
-      [normalized]
+       WHERE accounts.work_email = $1`,
+      [email]
     );
 
     const account = result.rows[0];
@@ -47,10 +54,12 @@ export class CounselorService {
         sub: account.id,
         username: account.username,
         role: "counselor",
-        counselorId: account.counselor_id
+        counselorId: account.counselor_id,
+        tokenVersion: Number(account.token_version ?? 0)
       }),
       user: {
         username: account.username,
+        email: account.work_email ?? email,
         role: "counselor",
         counselorId: account.counselor_id,
         displayName: account.display_name
@@ -59,7 +68,6 @@ export class CounselorService {
   }
 
   async register(input: {
-    username: string;
     password: string;
     legalName: string;
     staffId: string;
@@ -70,19 +78,21 @@ export class CounselorService {
     intro: string;
     specialties: string[];
   }) {
-    const username = input.username.trim().toLowerCase();
+    const workEmail = normalizeEmail(input.workEmail);
+    if (!isEmail(workEmail)) {
+      throw new BadRequestException("请输入有效工作邮箱。");
+    }
+    const username = buildUsernameFromEmail(workEmail);
     const existing = await this.database.query<{ id: string }>(
-      `SELECT id FROM counselor_accounts WHERE username = $1
+      `SELECT id FROM counselor_accounts WHERE staff_id = $1 AND organization = $2
        UNION
-       SELECT id FROM counselor_accounts WHERE staff_id = $3 AND organization = $4
+       SELECT id FROM counselor_accounts WHERE work_email = $3
        UNION
-       SELECT id FROM counselor_accounts WHERE work_email = $5
-       UNION
-       SELECT id FROM counselors WHERE display_name = $2`,
-      [username, input.displayName.trim(), input.staffId.trim(), input.organization.trim(), input.workEmail.trim().toLowerCase()]
+       SELECT id FROM counselors WHERE display_name = $4`,
+      [input.staffId.trim(), input.organization.trim(), workEmail, input.displayName.trim()]
     );
     if (existing.rows[0]) {
-      throw new BadRequestException("账号名、公开称呼或身份信息已经被使用。");
+      throw new BadRequestException("工作邮箱、公开称呼或身份信息已经被使用。");
     }
 
     return this.database.transaction(async (client) => {
@@ -105,7 +115,7 @@ export class CounselorService {
           input.legalName.trim(),
           input.staffId.trim(),
           input.organization.trim(),
-          input.workEmail.trim().toLowerCase()
+          workEmail
         ]
       );
 
@@ -167,6 +177,21 @@ export class CounselorService {
     await this.database.query("UPDATE support_requests SET status = $1, updated_at = now() WHERE id = $2", [status, id]);
     return this.listMyRequests(counselorId);
   }
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function buildUsernameFromEmail(email: string) {
+  return email
+    .replace("@", "-")
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+    .slice(0, 64);
 }
 
 const supportRequestSql = `

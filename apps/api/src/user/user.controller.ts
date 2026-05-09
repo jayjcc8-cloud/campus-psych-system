@@ -11,16 +11,16 @@ export class UserController {
   register(@Body() body: unknown) {
     const payload = userRegisterSchema.parse(body);
     return this.users.register({
+      email: payload.email,
       password: payload.password,
-      preferredName: payload.preferredName,
-      recoveryEmail: payload.recoveryEmail || undefined
+      preferredName: payload.preferredName || undefined
     });
   }
 
   @Post("auth/login")
   login(@Body() body: unknown) {
     const payload = userLoginSchema.parse(body);
-    return this.users.login(payload.identifier, payload.password);
+    return this.users.login(payload.email, payload.password);
   }
 
   @Post("auth/recover")

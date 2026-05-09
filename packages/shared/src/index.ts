@@ -38,10 +38,10 @@ export const issueTypeLabels: Record<SupportIssueType, string> = {
 };
 
 export const requestStatusLabels: Record<SupportRequestStatus, string> = {
-  new: "已收到",
-  viewed: "中心已查看",
-  noted: "中心已留意",
-  closed: "已结束",
+  new: "待确认",
+  viewed: "已查看",
+  noted: "已确认",
+  closed: "已完成",
   withdrawn: "已撤回",
   spam: "已标记垃圾"
 };
@@ -58,11 +58,46 @@ export const assessmentScaleLabels: Record<AssessmentScaleId, string> = {
   gad7: "焦虑相关困扰"
 };
 
+export const assessmentCatalogVersion = "open_source_v1";
+export const assessmentSourceProfile = "WHO-5 + PHQ-9 + GAD-7 public screening v1";
+
 export interface AssessmentQuestion {
   id: string;
   scale: AssessmentScaleId;
   text: string;
   options: Array<{ label: string; value: number }>;
+}
+
+export interface AssessmentScaleBand {
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  interpretation: string;
+  recommendation: string;
+}
+
+export interface AssessmentScaleDefinition {
+  id: AssessmentScaleId;
+  label: string;
+  sourceName: string;
+  sourceUrl: string;
+  scoreDirection: "higher_better" | "higher_worse";
+  rawScoreRange: [number, number];
+  normalizedScoreRange: [number, number];
+  bands: AssessmentScaleBand[];
+}
+
+export interface AssessmentScaleScore {
+  scale: AssessmentScaleId;
+  label: string;
+  rawScore: number;
+  normalizedScore: number;
+  maxScore: number;
+  bandKey: string;
+  bandLabel: string;
+  interpretation: string;
+  recommendation: string;
 }
 
 const frequencyOptions = [
@@ -105,6 +140,153 @@ export const assessmentQuestions: AssessmentQuestion[] = [
   { id: "gad7_7", scale: "gad7", text: "最近两周，担心会发生不好的事情。", options: frequencyOptions }
 ];
 
+export const assessmentScaleDefinitions: Record<AssessmentScaleId, AssessmentScaleDefinition> = {
+  who5: {
+    id: "who5",
+    label: assessmentScaleLabels.who5,
+    sourceName: "WHO-5 Well-Being Index",
+    sourceUrl: "https://www.who.int/publications/m/item/WHO-UCN-MSD-MHE-2024.01",
+    scoreDirection: "higher_better",
+    rawScoreRange: [0, 25],
+    normalizedScoreRange: [0, 100],
+    bands: [
+      {
+        key: "very_low",
+        label: "明显偏低",
+        min: 0,
+        max: 28,
+        interpretation: "整体幸福感分数明显偏低，近期可能持续处在消耗或低恢复状态。",
+        recommendation: "建议尽快安排一次支持，也可以把这份结果带给咨询师一起讨论。"
+      },
+      {
+        key: "low",
+        label: "偏低",
+        min: 29,
+        max: 50,
+        interpretation: "整体幸福感低于常见关注阈值，值得继续观察近期状态。",
+        recommendation: "建议主动给自己预留支持时间，并关注睡眠、精力和日常恢复。"
+      },
+      {
+        key: "moderate",
+        label: "中等",
+        min: 51,
+        max: 75,
+        interpretation: "整体幸福感处于中等水平，暂未提示明显低幸福感。",
+        recommendation: "可以继续保持已有支持资源，如仍感吃力，也可以预约一次谈谈。"
+      },
+      {
+        key: "good",
+        label: "较好",
+        min: 76,
+        max: 100,
+        interpretation: "整体幸福感相对较好，近期恢复感和生活兴趣较稳定。",
+        recommendation: "可以把这作为近期状态基线，后续需要时再进行复测。"
+      }
+    ]
+  },
+  phq9: {
+    id: "phq9",
+    label: assessmentScaleLabels.phq9,
+    sourceName: "Patient Health Questionnaire-9",
+    sourceUrl: "https://www.phqscreeners.com/",
+    scoreDirection: "higher_worse",
+    rawScoreRange: [0, 27],
+    normalizedScoreRange: [0, 100],
+    bands: [
+      {
+        key: "minimal",
+        label: "最小",
+        min: 0,
+        max: 4,
+        interpretation: "抑郁相关困扰总分较低。",
+        recommendation: "若主观上仍感到困难，仍可以主动寻求支持。"
+      },
+      {
+        key: "mild",
+        label: "轻度",
+        min: 5,
+        max: 9,
+        interpretation: "抑郁相关困扰已有轻度表现。",
+        recommendation: "建议留意持续时间和对生活的影响，必要时预约支持。"
+      },
+      {
+        key: "moderate",
+        label: "中度",
+        min: 10,
+        max: 14,
+        interpretation: "抑郁相关困扰达到需要关注的水平。",
+        recommendation: "建议尽早和咨询师或专业人员讨论近期状态。"
+      },
+      {
+        key: "moderately_severe",
+        label: "中重度",
+        min: 15,
+        max: 19,
+        interpretation: "抑郁相关困扰较明显，可能已经影响日常功能。",
+        recommendation: "建议尽快获得专业支持，并减少独自承受。"
+      },
+      {
+        key: "severe",
+        label: "重度",
+        min: 20,
+        max: 27,
+        interpretation: "抑郁相关困扰处于较高水平。",
+        recommendation: "建议优先联系专业支持资源；如担心安全，请立即联系紧急支持。"
+      }
+    ]
+  },
+  gad7: {
+    id: "gad7",
+    label: assessmentScaleLabels.gad7,
+    sourceName: "Generalized Anxiety Disorder-7",
+    sourceUrl: "https://www.phqscreeners.com/",
+    scoreDirection: "higher_worse",
+    rawScoreRange: [0, 21],
+    normalizedScoreRange: [0, 100],
+    bands: [
+      {
+        key: "minimal",
+        label: "最小",
+        min: 0,
+        max: 4,
+        interpretation: "焦虑相关困扰总分较低。",
+        recommendation: "可以继续观察自己的节奏和恢复感。"
+      },
+      {
+        key: "mild",
+        label: "轻度",
+        min: 5,
+        max: 9,
+        interpretation: "焦虑相关困扰有轻度表现。",
+        recommendation: "建议留意担心、紧张和睡眠是否持续影响日常。"
+      },
+      {
+        key: "moderate",
+        label: "中度",
+        min: 10,
+        max: 14,
+        interpretation: "焦虑相关困扰达到需要关注的水平。",
+        recommendation: "建议主动安排支持，帮助自己梳理压力来源和应对方式。"
+      },
+      {
+        key: "severe",
+        label: "重度",
+        min: 15,
+        max: 21,
+        interpretation: "焦虑相关困扰处于较高水平，可能明显影响日常状态。",
+        recommendation: "建议尽快获得专业支持，不必等到完全撑不住再求助。"
+      }
+    ]
+  }
+};
+
+export const assessmentCatalog = {
+  version: assessmentCatalogVersion,
+  sourceProfile: assessmentSourceProfile,
+  scales: assessmentScaleDefinitions,
+  questions: assessmentQuestions
+};
+
 export interface SupportSlot {
   id: string;
   counselorId?: string;
@@ -143,6 +325,10 @@ export interface AssessmentSummary {
   id: string;
   receiptCode?: string;
   preferredName?: string;
+  scaleVersion: string;
+  sourceProfile: string;
+  scoreSummary: AssessmentScaleScore[];
+  recommendations: string[];
   who5Score: number;
   phq9Score: number;
   gad7Score: number;
@@ -158,6 +344,10 @@ export interface AssessmentStats {
   totalCount: number;
   highRiskCount: number;
   mediumRiskCount: number;
+  riskDistribution: Record<AssessmentRiskLevel, number>;
+  averageScores?: AssessmentScaleScore[];
+  scaleVersion?: string;
+  sourceProfile?: string;
   recent: AssessmentSummary[];
 }
 
@@ -181,6 +371,39 @@ export interface SupportRequestSummary {
   createdAt: string;
   updatedAt: string;
   withdrawnAt?: string;
+}
+
+export interface CounselorReviewSummary {
+  id: string;
+  accountId: string;
+  displayName: string;
+  title: string;
+  intro: string;
+  specialties: string[];
+  status: "draft" | "pending_review" | "approved" | "suspended";
+  accountStatus: "active" | "disabled";
+  legalName?: string;
+  staffId?: string;
+  organization?: string;
+  workEmail?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDashboardSummary {
+  requestTotal: number;
+  pendingCount: number;
+  confirmedCount: number;
+  completedCount: number;
+  todayCount: number;
+  highRiskCount: number;
+  counselorCount: number;
+  pendingCounselorReviewCount: number;
+  slotUtilizationPercent: number;
+  requestTrend: Array<{ date: string; count: number }>;
+  counselorWorkload: Array<{ counselorId: string; counselorName: string; requestCount: number; pendingCount: number }>;
+  riskDistribution: Record<AssessmentRiskLevel, number>;
+  recentHighRisk: SupportRequestSummary[];
 }
 
 export const createSupportRequestSchema = z.object({
@@ -210,12 +433,11 @@ export const createSupportSlotSchema = z.object({
 export const updateSupportSlotSchema = createSupportSlotSchema.partial();
 
 export const counselorLoginSchema = z.object({
-  username: z.string().min(2).max(64),
+  email: z.string().min(2).max(120),
   password: z.string().min(8).max(128)
 });
 
 export const counselorRegisterSchema = z.object({
-  username: z.string().min(4).max(64).regex(/^[a-zA-Z0-9_-]+$/),
   password: z.string().min(8).max(128),
   legalName: z.string().min(2).max(40),
   staffId: z.string().min(3).max(64),
@@ -238,7 +460,7 @@ export const updateSupportRequestSchema = z.object({
 });
 
 export const adminLoginSchema = z.object({
-  username: z.string().min(2).max(64),
+  email: z.string().min(2).max(120),
   password: z.string().min(8).max(128)
 });
 
@@ -248,13 +470,13 @@ export const unifiedLoginSchema = z.object({
 });
 
 export const userRegisterSchema = z.object({
-  preferredName: z.string().min(1).max(40),
+  email: z.string().email().max(120),
+  preferredName: z.string().max(40).optional().or(z.literal("")),
   password: z.string().min(8).max(128),
-  recoveryEmail: z.string().email().max(120).optional().or(z.literal(""))
 });
 
 export const userLoginSchema = z.object({
-  identifier: z.string().min(2).max(120),
+  email: z.string().min(2).max(120),
   password: z.string().min(8).max(128)
 });
 
@@ -264,12 +486,38 @@ export const userRecoverySchema = z.object({
   password: z.string().min(8).max(128)
 });
 
+export const emailVerificationRequestSchema = z.object({
+  email: z.string().email().max(120)
+});
+
+export const emailVerificationConfirmSchema = z.object({
+  token: z.string().min(12).max(160)
+});
+
+export const passwordResetRequestSchema = z.object({
+  email: z.string().email().max(120)
+});
+
+export const passwordResetConfirmSchema = z.object({
+  token: z.string().min(12).max(160),
+  password: z.string().min(8).max(128)
+});
+
+export const counselorReviewSchema = z.object({
+  decision: z.enum(["approve", "reject"]),
+  reason: z.string().max(240).optional().or(z.literal(""))
+});
+
+export const counselorStatusUpdateSchema = z.object({
+  status: z.enum(["approved", "suspended"])
+});
+
 export interface PrivacyUserProfile {
   id: string;
-  privacyId: string;
-  username?: string;
+  email?: string;
+  emailMasked: string;
+  emailVerified: boolean;
   preferredName: string;
-  recoveryEmailMasked?: string;
   createdAt: string;
 }
 
@@ -280,6 +528,7 @@ export interface UnifiedLoginResponse {
     | PrivacyUserProfile
     | {
         username: string;
+        email?: string;
         role: "counselor";
         counselorId: string;
         displayName: string;

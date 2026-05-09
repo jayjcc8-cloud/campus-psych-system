@@ -2,12 +2,21 @@ import type { AssessmentSummary, CounselorProfile, PrivacyUserProfile, SupportRe
 import { getAnonymousSessionId } from "../utils/session";
 
 function resolveApiBaseUrl() {
-  // H5 follows the current host so local/LAN access stays consistent.
-  // Mini Program keeps using the local API host configured for development.
+  // #ifdef H5
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
   if (typeof window !== "undefined" && window.location?.hostname) {
     return `${window.location.protocol}//${window.location.hostname}:4000`;
   }
+  // #endif
 
+  // #ifdef MP-WEIXIN
+  return "http://127.0.0.1:4000";
+  // #endif
+
+  // Fallback for non-H5 build tools and local previews.
   return "http://127.0.0.1:4000";
 }
 
@@ -102,6 +111,19 @@ export function clearCounselorToken() {
   uni.removeStorageSync(counselorTokenKey);
 }
 
+export function logoutCurrentToken() {
+  const token = getUserToken() || getCounselorToken();
+  if (!token) {
+    return Promise.resolve({ ok: true });
+  }
+  return request<{ ok: boolean }>("/auth/logout", {
+    method: "POST",
+    header: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export function listSlots() {
   return request<SupportSlot[]>("/support/slots");
 }
@@ -154,10 +176,10 @@ export function withdrawRequest(receiptCode: string) {
   });
 }
 
-export function counselorLogin(username: string, password: string) {
-  return request<{ token: string; user: { counselorId: string; displayName: string; username: string; role: "counselor" } }>("/counselor/auth/login", {
+export function counselorLogin(email: string, password: string) {
+  return request<{ token: string; user: { counselorId: string; displayName: string; username: string; email?: string; role: "counselor" } }>("/counselor/auth/login", {
     method: "POST",
-    data: { username, password }
+    data: { email, password }
   });
 }
 
@@ -169,7 +191,6 @@ export function unifiedLogin(identifier: string, password: string) {
 }
 
 export function counselorRegister(payload: {
-  username: string;
   password: string;
   legalName: string;
   staffId: string;
@@ -226,17 +247,17 @@ export function updateCounselorRequest(id: string, status: "viewed" | "noted" | 
   });
 }
 
-export function registerPrivacyUser(payload: { password: string; preferredName: string; recoveryEmail?: string }) {
-  return request<{ token: string; user: PrivacyUserProfile; recoveryPhrase: string }>("/user/auth/register", {
+export function registerPrivacyUser(payload: { email: string; password: string; preferredName?: string }) {
+  return request<{ token: string; user: PrivacyUserProfile; devVerificationToken?: string }>("/user/auth/register", {
     method: "POST",
     data: payload
   });
 }
 
-export function loginPrivacyUser(identifier: string, password: string) {
+export function loginPrivacyUser(email: string, password: string) {
   return request<{ token: string; user: PrivacyUserProfile }>("/user/auth/login", {
     method: "POST",
-    data: { identifier, password }
+    data: { email, password }
   });
 }
 
@@ -244,6 +265,34 @@ export function recoverPrivacyUser(payload: { privacyId: string; recoveryPhrase:
   return request<{ token: string; user: PrivacyUserProfile }>("/user/auth/recover", {
     method: "POST",
     data: payload
+  });
+}
+
+export function requestEmailVerification(email: string) {
+  return request<{ ok: boolean; message: string; devToken?: string }>("/auth/email-verification/request", {
+    method: "POST",
+    data: { email }
+  });
+}
+
+export function confirmEmailVerification(token: string) {
+  return request<{ ok: boolean; message: string }>("/auth/email-verification/confirm", {
+    method: "POST",
+    data: { token }
+  });
+}
+
+export function requestPasswordReset(email: string) {
+  return request<{ ok: boolean; message: string; devToken?: string }>("/auth/password-reset/request", {
+    method: "POST",
+    data: { email }
+  });
+}
+
+export function confirmPasswordReset(token: string, password: string) {
+  return request<{ ok: boolean; message: string }>("/auth/password-reset/confirm", {
+    method: "POST",
+    data: { token, password }
   });
 }
 

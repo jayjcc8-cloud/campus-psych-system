@@ -26,7 +26,13 @@ export function openPage(url: string) {
     return;
   }
 
-  uni.navigateTo({ url: normalized });
+  uni.navigateTo({
+    url: normalized,
+    fail: () => {
+      // 微信开发者工具游客模式偶发 navigateTo timeout，兜底保持流程可继续。
+      uni.reLaunch({ url: normalized });
+    }
+  });
 }
 
 export function replacePage(url: string) {
@@ -41,7 +47,12 @@ export function replacePage(url: string) {
     return;
   }
 
-  uni.redirectTo({ url: normalized });
+  uni.redirectTo({
+    url: normalized,
+    fail: () => {
+      uni.reLaunch({ url: normalized });
+    }
+  });
 }
 
 export function relaunchPage(url: string) {

@@ -17,7 +17,7 @@ export class CounselorController {
   @Post("auth/login")
   login(@Body() body: unknown) {
     const payload = counselorLoginSchema.parse(body);
-    return this.counselor.login(payload.username, payload.password);
+    return this.counselor.login(payload.email, payload.password);
   }
 
   @Post("auth/register")

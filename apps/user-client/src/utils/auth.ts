@@ -24,8 +24,8 @@ export function requireUserLogin(actionName = "继续操作") {
 
   const redirect = currentRoute();
   uni.showModal({
-    title: "需要轻量注册",
-    content: `${actionName}会生成个人记录。为了减少恶意提交和保护你的回执，请先完成隐私友好的登录或注册。`,
+    title: "需要登录",
+    content: `${actionName}会生成个人记录。为了减少恶意提交和保护你的回执，请先使用邮箱登录或注册。`,
     confirmText: "去登录",
     cancelText: "先看看",
     success(result) {

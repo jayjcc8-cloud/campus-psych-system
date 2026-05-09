@@ -16,8 +16,16 @@ export function createReceiptCode() {
   return `TS-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
 }
 
+export function createOpaqueToken(prefix = "tok") {
+  return `${prefix}_${randomBytes(24).toString("base64url")}`;
+}
+
 export function hashReceiptCode(code: string) {
   return stableHash(code.replace(/\s+/g, "").toUpperCase());
+}
+
+export function hashToken(token: string) {
+  return stableHash(token.trim());
 }
 
 export function hashPassword(password: string) {
@@ -43,12 +51,15 @@ export interface AdminTokenPayload {
   role: string;
   counselorId?: string;
   userId?: string;
+  tokenVersion?: number;
+  jti: string;
   exp: number;
 }
 
-export function signAdminToken(payload: Omit<AdminTokenPayload, "exp">) {
+export function signAdminToken(payload: Omit<AdminTokenPayload, "exp" | "jti"> & { jti?: string }) {
   const body: AdminTokenPayload = {
     ...payload,
+    jti: payload.jti || randomUUID(),
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8
   };
   const encoded = Buffer.from(JSON.stringify(body), "utf8").toString("base64url");
@@ -67,8 +78,12 @@ export function verifyAdminToken(token: string): AdminTokenPayload | null {
     return null;
   }
 
-  const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as AdminTokenPayload;
-  return payload.exp > Math.floor(Date.now() / 1000) ? payload : null;
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as AdminTokenPayload;
+    return payload.exp > Math.floor(Date.now() / 1000) ? payload : null;
+  } catch {
+    return null;
+  }
 }
 
 export function createId() {

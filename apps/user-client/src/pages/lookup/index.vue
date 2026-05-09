@@ -2,33 +2,32 @@
   <view class="page">
     <view class="hero">
       <text class="eyebrow">回执查询</text>
-      <text class="title">查看请求状态</text>
-      <text class="copy">状态只用于让你了解请求进展，不是对你的要求。</text>
+      <text class="title">查看预约状态</text>
+      <text class="copy">状态只用于让你了解预约进展，不是对你的要求。</text>
     </view>
     <view class="card stack">
-      <input v-model="receiptCode" placeholder="输入匿名回执码" />
+      <input v-model="receiptCode" placeholder="输入预约回执码" />
       <button @click="lookup">查询</button>
       <text v-if="error" class="error">{{ error }}</text>
     </view>
     <view v-if="request" class="card stack">
       <text class="pill">{{ statusLabel }}</text>
-      <text class="title">{{ request.preferredName || "匿名支持请求" }}</text>
+      <text class="title">{{ request.preferredName || "预约记录" }}</text>
       <text class="muted">{{ new Date(request.slotStartTime || request.createdAt).toLocaleString() }}</text>
       <text v-if="request.assessmentRiskLevel" class="muted">关联测评：{{ assessmentRiskLabel }}</text>
       <text class="copy">{{ request.remark || "未填写补充说明" }}</text>
-      <button v-if="canWithdraw" class="button-soft" @click="withdraw">撤回请求</button>
+      <button v-if="canWithdraw" class="button-soft" @click="withdraw">撤回预约</button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import { onLoad } from "@dcloudio/uni-app";
 import { computed, ref } from "vue";
 import { assessmentRiskLabels, requestStatusLabels, type SupportRequestSummary } from "@teacher-support/shared";
 import { getRequestByReceipt, withdrawRequest } from "../../api/client";
 
-const pages = getCurrentPages();
-const current = pages[pages.length - 1] as any;
-const receiptCode = ref(decodeURIComponent(current?.options?.code ?? ""));
+const receiptCode = ref("");
 const request = ref<SupportRequestSummary | null>(null);
 const error = ref("");
 
@@ -55,7 +54,10 @@ async function withdraw() {
   uni.showToast({ title: "已撤回", icon: "success" });
 }
 
-if (receiptCode.value) {
-  void lookup();
-}
+onLoad((options = {}) => {
+  receiptCode.value = typeof options.code === "string" ? decodeURIComponent(options.code) : "";
+  if (receiptCode.value) {
+    void lookup();
+  }
+});
 </script>

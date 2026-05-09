@@ -1,23 +1,23 @@
 <template>
   <view class="page">
     <view class="hero hero-compact">
-      <text class="eyebrow">创建隐私账号</text>
-      <text class="title">少填一点，也更安心一点</text>
-      <text class="copy">系统会生成隐私 ID。它不是实名身份，只用于登录和管理自己的记录。</text>
+      <text class="eyebrow">创建账号</text>
+      <text class="title">用邮箱开始，更容易记住</text>
+      <text class="copy">邮箱仅用于登录和账号管理。你仍然可以使用昵称或代称，不需要填写真实身份。</text>
     </view>
 
     <view v-if="!created" class="card stack">
       <view class="field">
-        <text class="label">希望被如何称呼</text>
-        <input v-model="form.preferredName" placeholder="昵称、代号或你愿意被称呼的方式" />
+        <text class="label">邮箱</text>
+        <input v-model="form.email" placeholder="用于登录，例如 name@example.com" />
       </view>
       <view class="field">
         <text class="label">设置密码</text>
         <input v-model="form.password" password placeholder="至少 8 位" />
       </view>
       <view class="field">
-        <text class="label">恢复邮箱</text>
-        <input v-model="form.recoveryEmail" placeholder="可选，用于后续找回" />
+        <text class="label">希望被如何称呼</text>
+        <input v-model="form.preferredName" placeholder="可选，昵称、代号或你愿意被称呼的方式" />
       </view>
       <text v-if="error" class="error">{{ error }}</text>
       <button :disabled="loading" @click="submit">{{ loading ? "创建中..." : "创建并登录" }}</button>
@@ -26,16 +26,18 @@
     <view v-else class="card stack">
       <text class="label-text">账号已创建</text>
       <view class="safe-box">
-        <text class="muted">隐私 ID</text>
-        <text class="secret">{{ created.privacyId }}</text>
+        <text class="muted">登录邮箱</text>
+        <text class="secret">{{ created.emailMasked }}</text>
       </view>
-      <view class="safe-box">
-        <text class="muted">恢复短语</text>
-        <text class="secret">{{ recoveryPhrase }}</text>
+      <text class="muted">继续提交预约或测评前，需要先完成邮箱验证。本地开发环境会直接显示验证 token。</text>
+      <view v-if="verificationToken" class="field">
+        <text class="label">开发验证 token</text>
+        <input v-model="verificationToken" />
       </view>
-      <text class="muted">恢复短语只展示这一次。请保存到安全位置，换设备或忘记密码时会用到。</text>
-      <button @click="copyRecovery">复制恢复信息</button>
-      <button class="button-light" @click="enterHome">进入首页</button>
+      <text v-if="verifyMessage" class="muted">{{ verifyMessage }}</text>
+      <text v-if="verifyError" class="error">{{ verifyError }}</text>
+      <button :disabled="verifying || !verificationToken" @click="verifyEmail">{{ verifying ? "验证中..." : "验证邮箱并重新登录" }}</button>
+      <button class="button-light" @click="enterHome">先进入首页</button>
     </view>
   </view>
 </template>
@@ -43,28 +45,31 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import type { PrivacyUserProfile } from "@teacher-support/shared";
-import { clearCounselorToken, registerPrivacyUser, setUserToken } from "../../api/client";
+import { clearCounselorToken, clearUserToken, confirmEmailVerification, registerPrivacyUser, setUserToken } from "../../api/client";
 import { relaunchPage } from "../../utils/navigation";
 
-const form = reactive({ preferredName: "", password: "", recoveryEmail: "" });
+const form = reactive({ email: "", preferredName: "", password: "" });
 const loading = ref(false);
 const error = ref("");
 const created = ref<PrivacyUserProfile | null>(null);
-const recoveryPhrase = ref("");
+const verificationToken = ref("");
+const verifying = ref(false);
+const verifyMessage = ref("");
+const verifyError = ref("");
 
 async function submit() {
   error.value = "";
   loading.value = true;
   try {
     const result = await registerPrivacyUser({
+      email: form.email,
       preferredName: form.preferredName,
-      password: form.password,
-      recoveryEmail: form.recoveryEmail
+      password: form.password
     });
     clearCounselorToken();
     setUserToken(result.token);
     created.value = result.user;
-    recoveryPhrase.value = result.recoveryPhrase;
+    verificationToken.value = result.devVerificationToken ?? "";
   } catch (err) {
     error.value = err instanceof Error ? err.message : "创建失败";
   } finally {
@@ -72,12 +77,22 @@ async function submit() {
   }
 }
 
-function copyRecovery() {
-  if (!created.value) return;
-  uni.setClipboardData({
-    data: `隐私 ID：${created.value.privacyId}\n恢复短语：${recoveryPhrase.value}`,
-    success: () => uni.showToast({ title: "已复制", icon: "success" })
-  });
+async function verifyEmail() {
+  verifyError.value = "";
+  verifyMessage.value = "";
+  verifying.value = true;
+  try {
+    const result = await confirmEmailVerification(verificationToken.value);
+    verifyMessage.value = result.message;
+    clearUserToken();
+    setTimeout(() => {
+      relaunchPage("/pages/login/index");
+    }, 600);
+  } catch (err) {
+    verifyError.value = err instanceof Error ? err.message : "验证失败";
+  } finally {
+    verifying.value = false;
+  }
 }
 
 function enterHome() {

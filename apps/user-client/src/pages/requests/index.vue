@@ -1,21 +1,29 @@
 <template>
   <view class="page">
-    <view class="hero hero-compact">
-      <text class="eyebrow">我的预约</text>
-      <text class="title">预约记录</text>
-      <text class="copy">查看已保存的预约状态。回执只保存在本机，你也可以手动输入回执查询。</text>
+    <!-- #ifdef H5 -->
+    <view class="h5-flow-header">
+      <view>
+        <text class="h5-flow-title">我的预约</text>
+        <text class="h5-flow-subtitle">查看本机回执、预约状态和后续处理</text>
+      </view>
+      <button class="h5-link-button" @click="go('/pages/index/index')">返回首页</button>
+    </view>
+    <!-- #endif -->
+
+    <!-- #ifdef MP-WEIXIN -->
+    <text class="page-title">我的预约</text>
+    <!-- #endif -->
+
+    <view class="segment">
+      <button class="segment-item" :class="{ 'segment-active': tab === 'active' }" @click="tab = 'active'">
+        即将开始
+      </button>
+      <button class="segment-item" :class="{ 'segment-active': tab === 'history' }" @click="tab = 'history'">
+        历史记录
+      </button>
     </view>
 
     <view class="stack">
-      <view class="segment">
-        <button class="segment-item" :class="{ 'segment-active': tab === 'active' }" @click="tab = 'active'">
-          即将开始 {{ activeAppointments.length }}
-        </button>
-        <button class="segment-item" :class="{ 'segment-active': tab === 'history' }" @click="tab = 'history'">
-          历史记录 {{ historyAppointments.length }}
-        </button>
-      </view>
-
       <text v-if="loading" class="muted">正在同步预约状态...</text>
 
       <view v-for="item in visibleAppointments" :key="item.receipt.receiptCode" class="appointment-card interactive" @click="open(item.receipt)">
@@ -23,19 +31,19 @@
           <text class="pill" :class="isActiveStatus(item.detail?.status) ? 'pill-soft' : ''">
             {{ item.detail ? requestStatusLabels[item.detail.status] : "待查看状态" }}
           </text>
-          <text class="muted">{{ formatCreatedAt(item.receipt.createdAt) }}</text>
+          <text class="muted">{{ item.detail?.slotStartTime ? distanceHint(item.detail.slotStartTime) : formatCreatedAt(item.receipt.createdAt) }}</text>
         </view>
         <view class="appointment-main">
           <view class="avatar avatar-small">{{ (item.detail?.counselorName || item.receipt.title || "咨").slice(0, 1) }}</view>
           <view>
             <text class="label-text">{{ item.detail?.counselorName || item.receipt.title }}</text>
-            <text class="muted">{{ item.detail?.slotStartTime ? formatAppointmentTime(item.detail.slotStartTime) : "时间待查询" }}</text>
+            <text class="copy">{{ item.detail?.slotStartTime ? formatAppointmentTime(item.detail.slotStartTime) : "时间待查询" }}</text>
+            <text class="muted">线下/线上支持 · 回执 {{ item.receipt.receiptCode }}</text>
           </view>
         </view>
-        <text class="muted">回执码：{{ item.receipt.receiptCode }}</text>
         <text v-if="item.error" class="error">{{ item.error }}</text>
         <view class="appointment-actions">
-          <button class="button-light compact-button" @click.stop="open(item.receipt)">查看详情</button>
+          <button class="button-light compact-button" @click.stop="open(item.receipt)">详情</button>
           <button class="button-soft compact-button" @click.stop="openLookup">手动查询</button>
         </view>
       </view>
@@ -96,6 +104,13 @@ function formatAppointmentTime(value: string) {
   return `${date.getMonth() + 1}/${date.getDate()} ${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()]} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
+function distanceHint(value: string) {
+  const diff = new Date(value).getTime() - Date.now();
+  if (diff <= 0) return "已开始";
+  const days = Math.ceil(diff / 86400000);
+  return `${days}天后`;
+}
+
 async function refreshReceipts() {
   const receipts = listLocalReceipts().filter((item) => item.kind === "support_request");
   loading.value = true;
@@ -111,18 +126,38 @@ async function refreshReceipts() {
   loading.value = false;
 }
 
-onShow(refreshReceipts);
+function syncRequestsChrome() {
+  // #ifdef H5
+  uni.hideTabBar();
+  // #endif
+
+  // #ifdef MP-WEIXIN
+  uni.showTabBar();
+  // #endif
+}
+
+function handleShow() {
+  syncRequestsChrome();
+  void refreshReceipts();
+}
+
+onShow(handleShow);
 </script>
 
 <style scoped>
 .appointment-card {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 18rpx;
   border-radius: 34rpx;
   background: #ffffff;
-  box-shadow: 0 20rpx 54rpx rgba(28, 38, 70, 0.07);
+  box-shadow: 0 18rpx 52rpx rgba(31, 41, 55, 0.06);
   padding: 28rpx;
+}
+
+.appointment-main {
+  display: flex;
+  gap: 18rpx;
 }
 
 .appointment-actions {
@@ -131,12 +166,6 @@ onShow(refreshReceipts);
   gap: 14rpx;
   border-top: 1rpx solid #edf0f6;
   padding-top: 18rpx;
-}
-
-.appointment-main {
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
 }
 
 .empty-action {

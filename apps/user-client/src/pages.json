@@ -1,4 +1,10 @@
 {
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^wd-(.*)": "wot-design-uni/components/wd-$1/wd-$1.vue"
+    }
+  },
   "pages": [
     {
       "path": "pages/login/index",
@@ -9,7 +15,7 @@
     {
       "path": "pages/user-register/index",
       "style": {
-        "navigationBarTitleText": "创建隐私账号"
+        "navigationBarTitleText": "创建邮箱账号"
       }
     },
     {
@@ -33,7 +39,7 @@
     {
       "path": "pages/request/index",
       "style": {
-        "navigationBarTitleText": "提交支持请求"
+        "navigationBarTitleText": "确认预约"
       }
     },
     {
@@ -63,7 +69,7 @@
     {
       "path": "pages/counselor-requests/index",
       "style": {
-        "navigationBarTitleText": "请求"
+        "navigationBarTitleText": "预约"
       }
     },
     {
@@ -111,7 +117,7 @@
     {
       "path": "pages/receipt/index",
       "style": {
-        "navigationBarTitleText": "匿名回执"
+        "navigationBarTitleText": "预约回执"
       }
     },
     {
@@ -146,8 +152,8 @@
     }
   ],
   "tabBar": {
-    "color": "#7A9993",
-    "selectedColor": "#1F7A70",
+    "color": "#6B7280",
+    "selectedColor": "#2563EB",
     "backgroundColor": "#FFFFFF",
     "list": [
       {
@@ -167,7 +173,11 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "心理支持",
-    "navigationBarBackgroundColor": "#F4FAF7",
-    "backgroundColor": "#F4FAF7"
+    "navigationBarBackgroundColor": "#F2F2F7",
+    "backgroundColor": "#F2F2F7"
+    // #ifdef H5
+    ,
+    "navigationStyle": "custom"
+    // #endif
   }
 }

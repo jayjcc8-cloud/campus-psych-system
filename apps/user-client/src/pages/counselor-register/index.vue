@@ -3,7 +3,7 @@
     <view class="hero hero-compact">
       <text class="eyebrow">咨询师入驻申请</text>
       <text class="title">完成身份审核后启用账号</text>
-      <text class="copy">咨询师账号需要强身份绑定。审核通过后，可在统一登录页使用工作邮箱或账号登录。</text>
+      <text class="copy">咨询师账号需要强身份绑定。审核通过后，可在统一登录页使用工作邮箱登录。</text>
     </view>
 
     <view class="card stack">
@@ -25,15 +25,9 @@
         <text class="label">工作邮箱</text>
         <input v-model="form.workEmail" placeholder="用于审核联系，也可用于登录" />
       </view>
-      <view class="grid">
-        <view class="field">
-          <text class="label">登录账号</text>
-          <input v-model="form.username" placeholder="字母、数字或下划线" />
-        </view>
-        <view class="field">
-          <text class="label">登录密码</text>
-          <input v-model="form.password" password placeholder="至少 8 位" />
-        </view>
+      <view class="field">
+        <text class="label">登录密码</text>
+        <input v-model="form.password" password placeholder="至少 8 位" />
       </view>
       <view class="grid">
         <view class="field">
@@ -67,7 +61,6 @@ import { counselorRegister } from "../../api/client";
 import { relaunchPage } from "../../utils/navigation";
 
 const form = reactive({
-  username: "",
   password: "",
   legalName: "",
   staffId: "",

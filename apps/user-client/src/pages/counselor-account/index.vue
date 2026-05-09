@@ -3,7 +3,7 @@
     <view class="hero hero-compact">
       <text class="eyebrow">账号与安全</text>
       <text class="title">管理当前登录状态</text>
-      <text class="copy">账号操作统一放在这里，避免干扰日常请求处理。</text>
+      <text class="copy">账号操作统一放在这里，避免干扰日常预约处理。</text>
     </view>
 
     <view class="card stack-small">
@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import type { CounselorProfile } from "@teacher-support/shared";
-import { ApiError, clearCounselorToken, getCounselorMe } from "../../api/client";
+import { ApiError, clearCounselorToken, getCounselorMe, logoutCurrentToken } from "../../api/client";
 
 const profile = ref<CounselorProfile | null>(null);
 
@@ -61,8 +61,10 @@ function confirmLogout() {
     cancelText: "取消",
     success(result) {
       if (result.confirm) {
-        clearCounselorToken();
-        uni.reLaunch({ url: "/pages/login/index" });
+        void logoutCurrentToken().finally(() => {
+          clearCounselorToken();
+          uni.reLaunch({ url: "/pages/login/index" });
+        });
       }
     }
   });

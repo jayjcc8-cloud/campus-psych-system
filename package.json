@@ -10,9 +10,17 @@
     "dev:user:h5": "pnpm --filter @teacher-support/user-client dev:h5",
     "build": "pnpm -r --filter './apps/**' build",
     "check": "pnpm -r check",
-    "lint": "pnpm -r lint"
+    "lint": "eslint .",
+    "format:check": "prettier --check . --ignore-path .gitignore",
+    "test:api:integration": "pnpm --filter @teacher-support/api test:integration"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-vue": "^10.9.1",
+    "prettier": "^3.8.3",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.59.2",
+    "vue-eslint-parser": "^10.4.0"
   }
 }

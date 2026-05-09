@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import {
   adminLoginSchema,
+  counselorReviewSchema,
+  counselorStatusUpdateSchema,
   createSupportSlotSchema,
   updateSupportRequestSchema,
   updateSupportSlotSchema
@@ -21,7 +23,33 @@ export class AdminController {
   @Post("auth/login")
   login(@Body() body: unknown) {
     const payload = adminLoginSchema.parse(body);
-    return this.admin.login(payload.username, payload.password);
+    return this.admin.login(payload.email, payload.password);
+  }
+
+  @Get("dashboard")
+  @UseGuards(AdminAuthGuard)
+  dashboard() {
+    return this.admin.getDashboard();
+  }
+
+  @Get("counselors/reviews")
+  @UseGuards(AdminAuthGuard)
+  listCounselorReviews() {
+    return this.admin.listCounselorReviews();
+  }
+
+  @Patch("counselors/:id/review")
+  @UseGuards(AdminAuthGuard)
+  reviewCounselor(@Param("id") id: string, @Body() body: unknown, @Req() request: AdminRequest) {
+    const payload = counselorReviewSchema.parse(body);
+    return this.admin.reviewCounselor(id, payload.decision, payload.reason || undefined, request.admin!.sub);
+  }
+
+  @Patch("counselors/:id/status")
+  @UseGuards(AdminAuthGuard)
+  updateCounselorStatus(@Param("id") id: string, @Body() body: unknown, @Req() request: AdminRequest) {
+    const payload = counselorStatusUpdateSchema.parse(body);
+    return this.admin.updateCounselorStatus(id, payload.status, request.admin!.sub);
   }
 
   @Get("support-requests")
