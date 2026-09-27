@@ -19,7 +19,6 @@ apps/admin-web     心理服务中心管理后台
 apps/api           NestJS REST API
 packages/shared    共享类型、状态、校验 schema
 infra              Docker Compose 环境
-legacy             旧学生预约系统归档
 ```
 
 ## 本地启动
@@ -38,7 +37,7 @@ pnpm dev:user
 docker compose -f infra/docker-compose.yml up
 ```
 
-默认后台账号：
+默认后台账号（LOCAL DEVELOPMENT ONLY — 仅本地开发 fixture）：
 
 ```text
 账号：center-admin
